@@ -1,0 +1,55 @@
+# macOS
+.DS_Store
+
+# Company-provided assignment brief
+AI Engineer Internship Assignment - Tantrabodh AI .pdf
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Packaging and build outputs
+build/
+dist/
+*.egg-info/
+
+# Local environment variables and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Local model and Hugging Face caches
+.cache/
+.huggingface/
+models/
+*.safetensors
+*.gguf
+*.bin
+
+# Runtime logs and temporary files
+logs/
+*.log
+tmp/
+temp/
+
+# Generated runtime artifacts
+artifacts/
+runtime_outputs/
+
+# Editors and notebooks
+.idea/
+.vscode/
+.ipynb_checkpoints/

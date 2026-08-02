@@ -1,7 +1,7 @@
 # Data loading and runtime validation
 PyYAML==6.0.3
 pydantic==2.13.4
-numpy==1.27.6
+numpy==2.5.1
 # Local Hugging Face retrieval and generation
 huggingface_hub==1.26.0
 torch==2.13.0

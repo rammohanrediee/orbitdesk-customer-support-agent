@@ -7,19 +7,27 @@ verifies that the response is grounded in the retrieved sources.
 
 ## Project status
 
-This repository is a work in progress. The data loading, evidence indexing,
-keyword and semantic retrieval, local model wrapper, triage, generation,
-verification, retry state, and core node functions are implemented. The final
-LangGraph assembly, conditional triage routes, safe-failure node, CLI, graph
-diagram, end-to-end tests, and sample run outputs are still being completed.
+The core local workflow is implemented: data loading, evidence indexing,
+semantic retrieval with keyword fallback, triage, generation, verification,
+bounded retry routing, safe terminal responses, a CLI, graph tests, and a
+five-question sample runner. Final route calibration and submission artifacts
+are still being completed.
 
-## Planned workflow
+## Workflow
 
-```text
-question -> triage -> retrieve -> generate -> verify
-                |                         |
-                |                         +-> retry -> generate
-                +-> clarification / escalation / out of scope
+```mermaid
+flowchart LR
+    A["User question"] --> B["Triage"]
+    B -->|Answerable or escalation| C["Retrieve evidence"]
+    B -->|Needs clarification| H["Ask clarification"]
+    B -->|Out of scope| J["Safe response"]
+    B -->|Triage failure| K["Safe failure"]
+    C --> D["Generate locally"]
+    D --> E["Verify"]
+    E -->|Pass| F["Structured result"]
+    E -->|Fail with retry remaining| G["Retry"]
+    G --> D
+    E -->|Fail after retry| K
 ```
 
 Semantic retrieval is attempted first. If it fails, the retrieval node falls
@@ -36,7 +44,7 @@ current knowledge-base documents take priority over resolved cases.
 The runtime selects Apple MPS first, then NVIDIA CUDA, and otherwise uses the
 CPU. Network access is needed for the initial model download only.
 
-## Setup
+## Setup and usage
 
 Python 3.12 is recommended.
 
@@ -46,27 +54,48 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
 
-The package currently uses a `src` layout without packaging metadata, so set
-`PYTHONPATH` when running tests:
+Run the CLI with a question:
 
 ```bash
-PYTHONPATH=src pytest -q
+PYTHONPATH=src python -m orbitdesk_support_agent.cli \
+  "Can a Viewer create an API credential?"
 ```
 
-Current result: `12 passed`.
+Generate outputs for all five supplied questions:
+
+```bash
+PYTHONPATH=src python -m orbitdesk_support_agent.sample_runner
+```
+
+Run the tests:
+
+```bash
+python -m pytest -q
+```
+
+Current result: `14 passed`.
 
 ## Repository contents
 
 - `knowledge_base/`: current OrbitDesk product documentation
 - `resolved_cases.json`: historical support cases
 - `sample_questions.json`: five supplied workflow questions
+- `sample_outputs.json`: locally generated structured responses and traces
 - `output_schema.json`: structured response schema
 - `src/orbitdesk_support_agent/`: agent implementation
-- `tests/`: loader, indexer, and keyword-retrieval tests
+- `tests/`: loader, indexer, retrieval, and graph-routing tests
 
 Knowledge-base documents are the primary source of truth. Resolved cases are
 secondary evidence, and cases marked `superseded` must never be presented as
 current guidance.
+
+## Known limitation
+
+The small local generation model can be conservative during triage and may ask
+for clarification when the supplied documentation could answer the question.
+The graph behavior remains observable through its execution log, and the
+deterministic verifier and bounded retry prevent unsupported answers and
+infinite loops.
 
 ## AI assistance disclosure
 

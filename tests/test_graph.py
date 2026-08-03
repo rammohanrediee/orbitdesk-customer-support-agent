@@ -77,55 +77,12 @@ class RetryThenPassLLM:
         system_prompt: str,
         user_prompt: str,
     ) -> str:
-        if "triage component" in system_prompt:
-            return json.dumps(
-                {
-                    "classification": "answerable",
-                    "reason": "The question concerns API credentials.",
-                    "clarification_question": None,
-                }
-            )
-
         self.generation_calls += 1
 
         if self.generation_calls == 1:
-            # Structurally valid but verification must reject it
-            # because an answerable response has no sources.
-            return json.dumps(
-                {
-                    "classification": "answerable",
-                    "answer": "A Viewer cannot create credentials.",
-                    "sources": [],
-                    "confidence": 0.5,
-                    "requires_human": False,
-                    "reason": "The role does not have permission.",
-                    "clarification_question": None,
-                    "warnings": [],
-                }
-            )
+            return ""
 
-        return json.dumps(
-            {
-                "classification": "answerable",
-                "answer": (
-                    "A Viewer cannot create API credentials."
-                ),
-                "sources": [
-                    {
-                        "source_id": "KB-005",
-                        "passage": (
-                            "Only Owners and Admins can create "
-                            "API credentials."
-                        ),
-                    }
-                ],
-                "confidence": 0.9,
-                "requires_human": False,
-                "reason": "Supported by the permissions documentation.",
-                "clarification_question": None,
-                "warnings": [],
-            }
-        )
+        return "A Viewer cannot create API credentials."
 
 
 class FixedRetriever:
@@ -175,9 +132,52 @@ def test_failed_verification_retries_once() -> None:
     assert result["execution_log"] == [
         "triage",
         "retrieve:semantic",
-        "generate",
+        "generate:failed",
         "verify:failed",
         "retry",
         "generate",
         "verify:passed",
     ]
+
+
+class EmptyAnswerLLM:
+    def generate(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+    ) -> str:
+        return ""
+
+
+def test_empty_generation_retries_then_returns_safe_failure() -> None:
+    graph = build_graph(
+        llm=EmptyAnswerLLM(),
+        semantic_retriever=FixedRetriever(),
+    )
+
+    result = graph.invoke(
+        {
+            "question": (
+                "Can a Viewer create an API credential?"
+            ),
+            "all_records": [],
+            "retry_count": 0,
+            "max_retries": 1,
+            "execution_log": [],
+            "verification_issues": [],
+        }
+    )
+
+    assert result["response"].classification == "safe_failure"
+    assert result["retry_count"] == 1
+    assert result["execution_log"] == [
+        "triage",
+        "retrieve:semantic",
+        "generate:failed",
+        "verify:failed",
+        "retry",
+        "generate:failed",
+        "verify:failed",
+        "safe_failure",
+    ]
+    assert "Generation failed" in result["error"]

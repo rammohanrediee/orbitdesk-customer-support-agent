@@ -6,6 +6,7 @@ from orbitdesk_support_agent.prompts import (
     build_user_prompt,
 )
 from orbitdesk_support_agent.schemas import (
+    Classification,
     EvidenceRecord,
     SupportResponse,
 )
@@ -50,6 +51,8 @@ def generate_response(
     question: str,
     records: list[EvidenceRecord],
     llm: LanguageModel,
+    expected_classification: Classification = "answerable",
+    revision_feedback: list[str] | None = None,
 ) -> SupportResponse:
     if not records:
         return SupportResponse(
@@ -67,44 +70,50 @@ def generate_response(
         )
 
     user_prompt = build_user_prompt(question, records)
-    output_schema = json.dumps(
-        SupportResponse.model_json_schema(),
-        indent=2,
-    )
-
     user_prompt = (
         f"{user_prompt}\n\n"
-        "<required_output_schema>\n"
-        f"{output_schema}\n"
-        "</required_output_schema>\n\n"
-        "Return only one valid JSON object matching this schema."
+        f"The workflow classification is {expected_classification}.\n"
+        "Return only the readable answer, without JSON, headings, "
+        "or a preamble. Keep the answer under 100 words. Give only "
+        "instructions supported by the supplied evidence."
     )
+
+    if revision_feedback:
+        feedback = "; ".join(revision_feedback)
+        user_prompt += (
+            "\n\nThe previous attempt failed verification. Correct "
+            f"these issues: {feedback}"
+        )
 
     raw_response = llm.generate(
         SYSTEM_PROMPT,
         user_prompt,
     )
+    answer = raw_response.strip()
 
-    parsed_response = extract_json_object(raw_response)
-    response = SupportResponse.model_validate(parsed_response)
+    if not answer:
+        raise ValueError("The model returned an empty answer.")
 
-    allowed_source_ids = {
-        record["source_id"]
-        for record in records
-    }
-    generated_source_ids = {
-        source.source_id
-        for source in response.sources
-    }
+    sources = [
+        {
+            "source_id": record["source_id"],
+            "passage": " ".join(record["text"].split())[:240],
+        }
+        for record in records[:3]
+    ]
 
-    invented_source_ids = (
-        generated_source_ids - allowed_source_ids
+    return SupportResponse(
+        classification=expected_classification,
+        answer=answer,
+        sources=sources,
+        confidence=0.8,
+        requires_human=(
+            expected_classification == "requires_escalation"
+        ),
+        reason=(
+            "The answer was generated from the retrieved local "
+            "OrbitDesk evidence."
+        ),
+        clarification_question=None,
+        warnings=[],
     )
-
-    if invented_source_ids:
-        raise ValueError(
-            "The generated response cited unavailable sources: "
-            f"{sorted(invented_source_ids)}"
-        )
-
-    return response

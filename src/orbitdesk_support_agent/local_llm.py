@@ -8,7 +8,20 @@ from orbitdesk_support_agent.model_config import (
     GENERATION_MODEL_NAME,
     GENERATION_MODEL_REVISION,
     MAX_NEW_TOKENS,
+    MPS_MEMORY_FRACTION,
     get_device,)
+
+
+def configure_device_memory(device: str) -> None:
+    if device == "mps":
+        torch.mps.set_per_process_memory_fraction(
+            MPS_MEMORY_FRACTION
+        )
+
+
+def release_device_cache(device: str) -> None:
+    if device == "mps":
+        torch.mps.empty_cache()
 
 
 class LocalLanguageModel:
@@ -18,6 +31,7 @@ class LocalLanguageModel:
         model: Any | None = None,
     ) -> None:
         self.device = get_device()
+        configure_device_memory(self.device)
         load_started = perf_counter()
 
         self.tokenizer = tokenizer or AutoTokenizer.from_pretrained(
@@ -76,21 +90,32 @@ class LocalLanguageModel:
         input_length = inputs["input_ids"].shape[1]
         generation_started = perf_counter()
 
-        with torch.inference_mode():
-            output_ids = self.model.generate(
-                **inputs,
-                max_new_tokens=MAX_NEW_TOKENS,
-                do_sample=False,
-                pad_token_id=self.tokenizer.eos_token_id,
+        output_ids = None
+        generated_tokens = None
+
+        try:
+            with torch.inference_mode():
+                output_ids = self.model.generate(
+                    **inputs,
+                    max_new_tokens=MAX_NEW_TOKENS,
+                    do_sample=False,
+                    pad_token_id=self.tokenizer.eos_token_id,
+                )
+
+            self.last_generation_seconds = (
+                perf_counter() - generation_started
             )
 
-        self.last_generation_seconds = (
-            perf_counter() - generation_started
-        )
+            generated_tokens = output_ids[0, input_length:]
 
-        generated_tokens = output_ids[0, input_length:]
+            result = self.tokenizer.decode(
+                generated_tokens,
+                skip_special_tokens=True,
+            ).strip()
+        finally:
+            inputs.clear()
+            del generated_tokens
+            del output_ids
+            release_device_cache(self.device)
 
-        return self.tokenizer.decode(
-            generated_tokens,
-            skip_special_tokens=True,
-        ).strip()
+        return result

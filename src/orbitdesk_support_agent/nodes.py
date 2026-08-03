@@ -62,7 +62,6 @@ def create_retry_node() -> Callable[[AgentState], AgentState]:
             "retry_count": retry_count + 1,
             "response": None,
             "verification_passed": False,
-            "verification_issues": [],
             "execution_log": ["retry"],
         }
 
@@ -136,15 +135,40 @@ def create_generation_node(
     def generation_node(state: AgentState) -> AgentState:
         question = state.get("question", "")
         evidence = state.get("retrieved_evidence", [])
-
-        response = generate_response(
-            question=question,
-            records=evidence,
-            llm=llm,
+        triage_result = state.get("triage_result")
+        expected_classification = (
+            triage_result.classification
+            if triage_result is not None
+            else "answerable"
         )
+        revision_feedback = list(
+            state.get("verification_issues", [])
+        )
+
+        if error := state.get("error"):
+            revision_feedback.append(error)
+
+        try:
+            response = generate_response(
+                question=question,
+                records=evidence,
+                llm=llm,
+                expected_classification=expected_classification,
+                revision_feedback=revision_feedback,
+            )
+        except Exception as error:
+            return {
+                "response": None,
+                "error": (
+                    "Generation failed: "
+                    f"{type(error).__name__}: {error}"
+                ),
+                "execution_log": ["generate:failed"],
+            }
 
         return {
             "response": response,
+            "error": None,
             "execution_log": ["generate"],
         }
 

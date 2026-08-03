@@ -13,22 +13,21 @@ generation, deterministic response construction, verification, bounded retry
 routing, safe terminal responses, CLI, tests, five validated sample outputs,
 and the required graph image.
 
-## Workflow
+## Tech stack
 
-```mermaid
-flowchart LR
-    A["User question"] --> B["Triage"]
-    B -->|Answerable or escalation| C["Retrieve evidence"]
-    B -->|Needs clarification| H["Ask clarification"]
-    B -->|Out of scope| J["Safe response"]
-    B -->|Triage failure| K["Safe failure"]
-    C --> D["Generate locally"]
-    D --> E["Verify"]
-    E -->|Pass| F["Structured result"]
-    E -->|Fail with retry remaining| G["Retry"]
-    G --> D
-    E -->|Fail after retry| K
-```
+[![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-Local_Inference-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org/)
+[![LangGraph](https://img.shields.io/badge/LangGraph-Agent_Workflow-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white)](https://www.langchain.com/langgraph)
+[![Hugging Face](https://img.shields.io/badge/Hugging_Face-Transformers-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black)](https://huggingface.co/docs/transformers/)
+[![Sentence Transformers](https://img.shields.io/badge/Sentence_Transformers-Semantic_Retrieval-2E7D32?style=for-the-badge)](https://www.sbert.net/)
+[![Pydantic](https://img.shields.io/badge/Pydantic-Typed_Schemas-E92063?style=for-the-badge&logo=pydantic&logoColor=white)](https://docs.pydantic.dev/)
+[![pytest](https://img.shields.io/badge/pytest-33_Passing-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)](https://docs.pytest.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-6DAE30?style=for-the-badge)](LICENSE)
+
+Exact dependency versions are pinned in `requirements.txt` for reproducible
+installation.
+
+## Workflow
 
 ![OrbitDesk agent graph](docs/orbitdesk-agent-graph.png)
 
@@ -171,3 +170,7 @@ An AI coding assistant was used while developing this assignment for guided
 explanations, implementation review, debugging, and documentation. The design
 choices and submitted implementation were reviewed incrementally by the
 candidate.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).

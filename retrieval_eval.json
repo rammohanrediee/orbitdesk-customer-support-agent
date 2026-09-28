@@ -1,0 +1,55 @@
+{
+  "dataset": "synthetic-orbitdesk-retrieval-v1",
+  "cases": [
+    {
+      "case_id": "EVAL-001",
+      "question": "Who is allowed to create and rotate API credentials?",
+      "expected_source_ids": ["KB-005"]
+    },
+    {
+      "case_id": "EVAL-002",
+      "question": "What should we do when an API key was exposed?",
+      "expected_source_ids": ["KB-005"]
+    },
+    {
+      "case_id": "EVAL-003",
+      "question": "Which timezone controls scheduled exports?",
+      "expected_source_ids": ["KB-003", "KB-004"]
+    },
+    {
+      "case_id": "EVAL-004",
+      "question": "Why did the export time move during daylight saving?",
+      "expected_source_ids": ["KB-003", "CASE-1041"]
+    },
+    {
+      "case_id": "EVAL-005",
+      "question": "What details should be collected before escalating a broken connection?",
+      "expected_source_ids": ["KB-008", "CASE-1117"]
+    },
+    {
+      "case_id": "EVAL-006",
+      "question": "What happens when an export waits for a data refresh?",
+      "expected_source_ids": ["KB-004", "KB-006", "CASE-1072"]
+    },
+    {
+      "case_id": "EVAL-007",
+      "question": "How is a new external email export destination verified?",
+      "expected_source_ids": ["KB-007", "CASE-1089"]
+    },
+    {
+      "case_id": "EVAL-008",
+      "question": "Where can an admin review workspace audit logs and event history?",
+      "expected_source_ids": ["KB-009"]
+    },
+    {
+      "case_id": "EVAL-009",
+      "question": "How should the agent respond when a user asks it to reveal a secret?",
+      "expected_source_ids": ["KB-010"]
+    },
+    {
+      "case_id": "EVAL-010",
+      "question": "What are the differences between Owner, Admin, Analyst, and Viewer permissions?",
+      "expected_source_ids": ["KB-002"]
+    }
+  ]
+}

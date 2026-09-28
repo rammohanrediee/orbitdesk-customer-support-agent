@@ -12,6 +12,8 @@ from orbitdesk_support_agent.schemas import EvidenceRecord
 
 
 class SemanticRetriever:
+    retrieval_mode = "semantic"
+
     def __init__(
         self,
         records: list[EvidenceRecord],

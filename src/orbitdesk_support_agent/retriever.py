@@ -1,6 +1,18 @@
 import re
-from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
 from orbitdesk_support_agent.schemas import EvidenceRecord
+
+
+# A deliberately small built-in list keeps the reliable keyword baseline free
+# of heavyweight ML dependencies. Semantic retrieval remains an optional extra.
+ENGLISH_STOP_WORDS = frozenset(
+    {
+        "a", "an", "and", "are", "as", "at", "be", "by", "can",
+        "do", "does", "for", "from", "how", "i", "in", "is", "it",
+        "my", "of", "on", "or", "that", "the", "this", "to", "was",
+        "what", "when", "where", "which", "who", "why", "with", "you",
+        "your",
+    }
+)
 
 
 def tokenize(text: str) -> set[str]:
@@ -61,3 +73,23 @@ def retrieve_evidence(
         record
         for _, _, record in ranked_records[:limit]
     ]
+
+
+class KeywordRetriever:
+    """Graph-compatible dependency-light retrieval baseline."""
+
+    retrieval_mode = "keyword"
+
+    def __init__(self, records: list[EvidenceRecord]) -> None:
+        self.records = list(records)
+
+    def retrieve(
+        self,
+        question: str,
+        limit: int = 4,
+    ) -> list[EvidenceRecord]:
+        return retrieve_evidence(
+            question=question,
+            records=self.records,
+            limit=limit,
+        )

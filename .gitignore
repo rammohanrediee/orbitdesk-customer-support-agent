@@ -23,6 +23,8 @@ env/
 build/
 dist/
 *.egg-info/
+frontend/node_modules/
+frontend/dist/
 
 # Local environment variables and secrets
 .env

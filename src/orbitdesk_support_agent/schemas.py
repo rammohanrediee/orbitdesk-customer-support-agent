@@ -54,8 +54,14 @@ class EvidenceRecord(TypedDict):
     status:str
 
 class SourceReference(BaseModel):
-    source_id: str
-    passage: str
+    source_id: str=Field(min_length=1, max_length=100)
+    passage: str=Field(min_length=1, max_length=500)
+
+
+class GeneratedAnswer(BaseModel):
+    answer: str=Field(min_length=1, max_length=2_000)
+    citations: list[SourceReference]=Field(min_length=1, max_length=4)
+    confidence: float=Field(ge=0, le=1)
 
 class SupportResponse(BaseModel):
     classification: Classification

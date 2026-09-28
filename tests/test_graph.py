@@ -82,7 +82,21 @@ class RetryThenPassLLM:
         if self.generation_calls == 1:
             return ""
 
-        return "A Viewer cannot create API credentials."
+        return json.dumps(
+            {
+                "answer": "A Viewer cannot create API credentials.",
+                "citations": [
+                    {
+                        "source_id": "KB-005",
+                        "passage": (
+                            "Only Owners and Admins can create "
+                            "API credentials."
+                        ),
+                    }
+                ],
+                "confidence": 0.9,
+            }
+        )
 
 
 class FixedRetriever:

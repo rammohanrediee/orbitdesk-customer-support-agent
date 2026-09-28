@@ -8,6 +8,7 @@ from orbitdesk_support_agent.prompts import (
 from orbitdesk_support_agent.schemas import (
     Classification,
     EvidenceRecord,
+    GeneratedAnswer,
     SupportResponse,
 )
 
@@ -69,13 +70,19 @@ def generate_response(
             warnings=["The local model was not called."],
         )
 
+    output_schema = json.dumps(
+        GeneratedAnswer.model_json_schema(),
+        indent=2,
+    )
     user_prompt = build_user_prompt(question, records)
     user_prompt = (
         f"{user_prompt}\n\n"
         f"The workflow classification is {expected_classification}.\n"
-        "Return only the readable answer, without JSON, headings, "
-        "or a preamble. Keep the answer under 100 words. Give only "
-        "instructions supported by the supplied evidence."
+        "Return only one JSON object matching this schema:\n"
+        f"{output_schema}\n\n"
+        "Keep the answer under 100 words. Every citation passage must "
+        "be copied exactly from the cited evidence. Give only "
+        "instructions supported by those exact excerpts."
     )
 
     if revision_feedback:
@@ -89,24 +96,20 @@ def generate_response(
         SYSTEM_PROMPT,
         user_prompt,
     )
-    answer = raw_response.strip()
-
-    if not answer:
-        raise ValueError("The model returned an empty answer.")
-
-    sources = [
-        {
-            "source_id": record["source_id"],
-            "passage": " ".join(record["text"].split())[:240],
-        }
-        for record in records[:3]
-    ]
+    parsed_response = extract_json_object(raw_response)
+    generated = GeneratedAnswer.model_validate(parsed_response)
+    retrieved_ids = {record["source_id"] for record in records}
+    for citation in generated.citations:
+        if citation.source_id not in retrieved_ids:
+            raise ValueError(
+                f"Cited source {citation.source_id} was not retrieved."
+            )
 
     return SupportResponse(
         classification=expected_classification,
-        answer=answer,
-        sources=sources,
-        confidence=0.8,
+        answer=generated.answer,
+        sources=generated.citations,
+        confidence=generated.confidence,
         requires_human=(
             expected_classification == "requires_escalation"
         ),

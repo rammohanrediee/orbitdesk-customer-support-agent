@@ -10,11 +10,18 @@ from orbitdesk_support_agent.loader import (
     load_knowledge_base,
     load_resolved_cases,
 )
-from orbitdesk_support_agent.local_llm import LocalLanguageModel
-from orbitdesk_support_agent.semantic_retriever import SemanticRetriever
+from orbitdesk_support_agent.nodes import MAX_WORKFLOW_RETRIES
+from orbitdesk_support_agent.openrouter_llm import OpenRouterLanguageModel
+from orbitdesk_support_agent.retriever import KeywordRetriever
+from orbitdesk_support_agent.trace import request_trace
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PACKAGE_ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = (
+    PACKAGE_ROOT.parents[1]
+    if PACKAGE_ROOT.parent.name == "src"
+    else PACKAGE_ROOT
+)
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -88,8 +95,8 @@ def main() -> None:
     )
     records = build_evidence_records(documents, cases)
 
-    retriever = SemanticRetriever(records)
-    llm = LocalLanguageModel()
+    retriever = KeywordRetriever(records)
+    llm = OpenRouterLanguageModel()
     graph = build_graph(llm, retriever)
 
     selected_samples = select_samples(
@@ -106,16 +113,17 @@ def main() -> None:
     for sample in selected_samples:
         started = perf_counter()
 
-        state = graph.invoke(
-            {
-                "question": sample["question"],
-                "all_records": records,
-                "retry_count": 0,
-                "max_retries": 1,
-                "execution_log": [],
-                "verification_issues": [],
-            }
-        )
+        with request_trace(timeout_seconds=60) as trace:
+            state = graph.invoke(
+                {
+                    "question": sample["question"],
+                    "all_records": records,
+                    "retry_count": 0,
+                    "max_retries": MAX_WORKFLOW_RETRIES,
+                    "execution_log": [],
+                    "verification_issues": [],
+                }
+            )
 
         response = state["response"]
 
@@ -130,19 +138,8 @@ def main() -> None:
                 2,
             ),
             "runtime": {
-                "device": llm.device,
-                "embedding_model_load_seconds": round(
-                    retriever.model_load_seconds,
-                    2,
-                ),
-                "embedding_indexing_seconds": round(
-                    retriever.indexing_seconds,
-                    2,
-                ),
-                "llm_load_seconds": round(
-                    llm.model_load_seconds,
-                    2,
-                ),
+                "model": llm.config.model,
+                "trace_id": trace.trace_id,
             },
         }
 

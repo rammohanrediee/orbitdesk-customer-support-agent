@@ -13,7 +13,11 @@ from orbitdesk_support_agent.schemas import (
 )
 from orbitdesk_support_agent.state import AgentState
 from orbitdesk_support_agent.triage import triage_question
+from orbitdesk_support_agent.trace import record_trace_event
 from orbitdesk_support_agent.verifier import verify_response
+
+
+MAX_WORKFLOW_RETRIES = 1
 
 TriageRoute = Literal[
     "retrieve",
@@ -46,7 +50,16 @@ def route_after_verification(
         return "complete"
 
     retry_count = state.get("retry_count", 0)
-    max_retries = state.get("max_retries", 2)
+    requested_max_retries = state.get(
+        "max_retries",
+        MAX_WORKFLOW_RETRIES,
+    )
+    if not isinstance(requested_max_retries, int):
+        requested_max_retries = MAX_WORKFLOW_RETRIES
+    max_retries = max(
+        0,
+        min(requested_max_retries, MAX_WORKFLOW_RETRIES),
+    )
 
     if retry_count < max_retries:
         return "retry"
@@ -58,6 +71,11 @@ def create_retry_node() -> Callable[[AgentState], AgentState]:
     def retry_node(state: AgentState) -> AgentState:
         retry_count = state.get("retry_count", 0)
 
+        record_trace_event(
+            "workflow.retry",
+            retry_count=retry_count + 1,
+            max_retries=MAX_WORKFLOW_RETRIES,
+        )
         return {
             "retry_count": retry_count + 1,
             "response": None,
@@ -74,13 +92,30 @@ def create_triage_node(
     def triage_node(state: AgentState) -> AgentState:
         question = state.get("question", "")
 
-        result = triage_question(
-            question=question,
-            llm=llm,
+        try:
+            result = triage_question(
+                question=question,
+                llm=llm,
+            )
+        except Exception as error:
+            record_trace_event(
+                "workflow.triage.failed",
+                error_type=type(error).__name__,
+            )
+            return {
+                "triage_result": None,
+                "error": "Triage failed safely.",
+                "execution_log": ["triage:failed"],
+            }
+
+        record_trace_event(
+            "workflow.triage.completed",
+            classification=result.classification,
         )
 
         return {
             "triage_result": result,
+            "error": None,
             "execution_log": ["triage"],
         }
 
@@ -99,11 +134,21 @@ def create_retrieval_node(
                 question,
                 limit=MAX_RETRIEVED_RECORDS,
             )
+            retrieval_mode = getattr(
+                semantic_retriever,
+                "retrieval_mode",
+                "semantic",
+            )
 
+            record_trace_event(
+                "workflow.retrieval.completed",
+                mode=retrieval_mode,
+                result_count=len(retrieved),
+            )
             return {
                 "retrieved_evidence": retrieved,
-                "retrieval_mode": "semantic",
-                "execution_log": ["retrieve:semantic"],
+                "retrieval_mode": retrieval_mode,
+                "execution_log": [f"retrieve:{retrieval_mode}"],
                 "error": None,
             }
 
@@ -114,16 +159,18 @@ def create_retrieval_node(
                 limit=MAX_RETRIEVED_RECORDS,
             )
 
+            record_trace_event(
+                "workflow.retrieval.fallback",
+                error_type=type(error).__name__,
+                result_count=len(retrieved),
+            )
             return {
                 "retrieved_evidence": retrieved,
                 "retrieval_mode": "keyword",
                 "execution_log": [
                     "retrieve:keyword_fallback"
                 ],
-                "error": (
-                    "Semantic retrieval failed: "
-                    f"{type(error).__name__}: {error}"
-                ),
+                "error": "Semantic retrieval failed; keyword fallback used.",
             }
 
     return retrieval_node
@@ -157,15 +204,21 @@ def create_generation_node(
                 revision_feedback=revision_feedback,
             )
         except Exception as error:
+            record_trace_event(
+                "workflow.generation.failed",
+                error_type=type(error).__name__,
+            )
             return {
                 "response": None,
-                "error": (
-                    "Generation failed: "
-                    f"{type(error).__name__}: {error}"
-                ),
+                "error": "Generation failed safely.",
                 "execution_log": ["generate:failed"],
             }
 
+        record_trace_event(
+            "workflow.generation.completed",
+            classification=response.classification,
+            citation_count=len(response.sources),
+        )
         return {
             "response": response,
             "error": None,
@@ -200,6 +253,12 @@ def create_verification_node() -> Callable[[AgentState], AgentState]:
             else "verify:failed"
         )
 
+        record_trace_event(
+            "workflow.verification.completed",
+            passed=result.passed,
+            issue_count=len(result.issues),
+        )
+
         return {
             "verification_passed": result.passed,
             "verification_issues": result.issues,
@@ -212,6 +271,8 @@ def create_verification_node() -> Callable[[AgentState], AgentState]:
 def create_safe_failure_node() -> Callable[[AgentState], AgentState]:
     def safe_failure_node(state: AgentState) -> AgentState:
         issues = state.get("verification_issues", [])
+        if not issues and state.get("error"):
+            issues = ["The workflow stopped after a dependency failure."]
 
         response = SupportResponse(
             classification="safe_failure",
@@ -230,6 +291,10 @@ def create_safe_failure_node() -> Callable[[AgentState], AgentState]:
             warnings=issues,
         )
 
+        record_trace_event(
+            "workflow.safe_failure",
+            issue_count=len(issues),
+        )
         return {
             "response": response,
             "verification_passed": False,
@@ -300,6 +365,7 @@ def create_clarification_node() -> Callable[[AgentState], AgentState]:
             warnings=[],
         )
 
+        record_trace_event("workflow.clarification")
         return {
             "response": response,
             "execution_log": ["clarification"],
@@ -332,6 +398,7 @@ def create_out_of_scope_node() -> Callable[[AgentState], AgentState]:
             warnings=[],
         )
 
+        record_trace_event("workflow.out_of_scope")
         return {
             "response": response,
             "execution_log": ["out_of_scope"],

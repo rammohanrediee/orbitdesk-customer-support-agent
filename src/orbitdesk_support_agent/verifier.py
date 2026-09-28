@@ -72,8 +72,6 @@ def verify_response(
             continue
 
         passage_tokens = tokenize(source.passage)
-        evidence_tokens = tokenize(record["text"])
-
         if not passage_tokens:
             issues.append(
                 f"Source {source.source_id} has an empty or "
@@ -81,10 +79,12 @@ def verify_response(
             )
             continue
 
-        if not passage_tokens & evidence_tokens:
+        normalized_passage = " ".join(source.passage.split())
+        normalized_evidence = " ".join(record["text"].split())
+        if normalized_passage not in normalized_evidence:
             issues.append(
-                f"The cited passage for {source.source_id} does not "
-                "overlap with its retrieved evidence."
+                f"The cited passage for {source.source_id} is not an "
+                "exact excerpt of its retrieved evidence."
             )
 
     return VerificationResult(

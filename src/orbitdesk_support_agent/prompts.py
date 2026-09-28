@@ -33,7 +33,9 @@ Classification rules:
   support.
 - Use "safe_failure" when a safe, grounded response cannot be produced.
 
-Return a response matching the SupportResponse schema.
+Return only a JSON object matching the schema supplied with the request.
+Every citation passage must be a short, exact excerpt copied from its source.
+Do not cite a source unless it directly supports the answer.
 """.strip()
 
 

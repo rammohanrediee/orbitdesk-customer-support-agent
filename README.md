@@ -8,18 +8,25 @@ are not exact excerpts from the retrieved sources.
 ## Tech stack
 
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![React](https://img.shields.io/badge/React-19-087EA4?style=for-the-badge&logo=react&logoColor=white)](https://react.dev/)
+[![Vite](https://img.shields.io/badge/Vite-8-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vite.dev/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-HTTP_API-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![OpenRouter](https://img.shields.io/badge/OpenRouter-GLM_4.5_Air-6467F2?style=for-the-badge)](https://openrouter.ai/)
 [![LangGraph](https://img.shields.io/badge/LangGraph-Agent_Workflow-1C3C3C?style=for-the-badge)](https://www.langchain.com/langgraph)
 [![Pydantic](https://img.shields.io/badge/Pydantic-Typed_Schemas-E92063?style=for-the-badge&logo=pydantic&logoColor=white)](https://docs.pydantic.dev/)
 [![Sentence Transformers](https://img.shields.io/badge/Sentence_Transformers-Optional_Semantic_Retrieval-2E7D32?style=for-the-badge)](https://www.sbert.net/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-Optional_ML_Runtime-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org/)
 [![Hugging Face](https://img.shields.io/badge/Hugging_Face-Optional_Local_Runtime-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black)](https://huggingface.co/docs/transformers/)
-[![pytest](https://img.shields.io/badge/pytest-63_Passing-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)](https://docs.pytest.org/)
-[![Coverage](https://img.shields.io/badge/Coverage-83%25-2E7D32?style=for-the-badge)](https://coverage.readthedocs.io/)
+[![pytest](https://img.shields.io/badge/pytest-66_Passing-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)](https://docs.pytest.org/)
+[![Coverage](https://img.shields.io/badge/Coverage-81%25-2E7D32?style=for-the-badge)](https://coverage.readthedocs.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-6DAE30?style=for-the-badge)](LICENSE)
 
 - OpenRouter with `z-ai/glm-4.5-air` handles generation and model-assisted
   triage through a bounded standard-library HTTP client.
+- React and Vite provide the responsive agent workspace, source view, and
+  redacted request-trace inspector.
+- FastAPI exposes the existing bounded workflow to the browser without moving
+  model credentials into frontend code.
 - LangGraph coordinates triage, retrieval, generation, verification, retry,
   and safe-failure routes.
 - Pydantic validates model output and the final support-response schema.
@@ -60,6 +67,27 @@ orbitdesk-support --show-trace \
   'Who can create an OrbitDesk API credential?'
 ```
 
+## Run the product
+
+Start the API from the activated Python environment. The same exported
+`OPENROUTER_API_KEY` is used by the browser workflow.
+
+```bash
+orbitdesk-api
+```
+
+In a second terminal, install the frontend dependencies and start Vite:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://127.0.0.1:5173`. Vite proxies `/api` requests to the local API on
+port 8000. Interactive API documentation is available at
+`http://127.0.0.1:8000/api/docs`.
+
 Keyword retrieval is the dependency-light default. Local semantic retrieval
 is available as an optional extra:
 
@@ -79,6 +107,9 @@ orbitdesk-evaluate --limit 4
 python -m pytest -q
 coverage run -m pytest
 coverage report
+cd frontend
+npm test
+npm run build
 ```
 
 The current keyword baseline scores HitRate@4 `1.0` and MRR `0.9` across ten
@@ -101,7 +132,9 @@ All configurable limits are documented in `.env.example`.
 ## Repository contents
 
 - `src/orbitdesk_support_agent/`: workflow, retrieval, model client, tracing,
-  and evaluation code
+  evaluation, and FastAPI boundary
+- `frontend/`: React/Vite product workspace and component tests
+- `tokens.css`: shared Hallmark design tokens
 - `knowledge_base/`: synthetic OrbitDesk product documentation
 - `resolved_cases.json`: synthetic historical support cases
 - `retrieval_eval.json`: labeled synthetic retrieval benchmark

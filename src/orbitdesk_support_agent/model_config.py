@@ -1,7 +1,5 @@
 from typing import Literal
 
-import torch
-
 
 Device = Literal["mps", "cuda", "cpu"]
 
@@ -22,6 +20,11 @@ MPS_MEMORY_FRACTION = 0.55
 
 
 def get_device() -> Device:
+    try:
+        import torch
+    except ImportError:
+        return "cpu"
+
     if torch.backends.mps.is_available():
         return "mps"
 

@@ -5,6 +5,29 @@ loads a synthetic product knowledge base and resolved-case corpus, retrieves
 relevant evidence, produces a structured answer, and rejects citations that
 are not exact excerpts from the retrieved sources.
 
+## Tech stack
+
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![OpenRouter](https://img.shields.io/badge/OpenRouter-GLM_4.5_Air-6467F2?style=for-the-badge)](https://openrouter.ai/)
+[![LangGraph](https://img.shields.io/badge/LangGraph-Agent_Workflow-1C3C3C?style=for-the-badge)](https://www.langchain.com/langgraph)
+[![Pydantic](https://img.shields.io/badge/Pydantic-Typed_Schemas-E92063?style=for-the-badge&logo=pydantic&logoColor=white)](https://docs.pydantic.dev/)
+[![Sentence Transformers](https://img.shields.io/badge/Sentence_Transformers-Optional_Semantic_Retrieval-2E7D32?style=for-the-badge)](https://www.sbert.net/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-Optional_ML_Runtime-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org/)
+[![Hugging Face](https://img.shields.io/badge/Hugging_Face-Optional_Local_Runtime-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black)](https://huggingface.co/docs/transformers/)
+[![pytest](https://img.shields.io/badge/pytest-63_Passing-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)](https://docs.pytest.org/)
+[![Coverage](https://img.shields.io/badge/Coverage-83%25-2E7D32?style=for-the-badge)](https://coverage.readthedocs.io/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-6DAE30?style=for-the-badge)](LICENSE)
+
+- OpenRouter with `z-ai/glm-4.5-air` handles generation and model-assisted
+  triage through a bounded standard-library HTTP client.
+- LangGraph coordinates triage, retrieval, generation, verification, retry,
+  and safe-failure routes.
+- Pydantic validates model output and the final support-response schema.
+- Dependency-light keyword retrieval is the default; Sentence Transformers
+  remains available for optional local semantic retrieval.
+- PyTorch and the Hugging Face ecosystem remain optional ML dependencies;
+  the default keyword/OpenRouter path does not require them.
+
 ![OrbitDesk agent graph](docs/orbitdesk-agent-graph.png)
 
 ## Model choice

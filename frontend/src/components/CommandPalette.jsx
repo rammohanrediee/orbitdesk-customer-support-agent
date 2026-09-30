@@ -76,7 +76,7 @@ export default function CommandPalette({
         <div className="command-dialog__field">
           <Search aria-hidden="true" size={18} />
           <label className="sr-only" htmlFor="command-search">
-            Search example support questions
+            Search request history
           </label>
           <input
             ref={inputRef}
@@ -84,7 +84,7 @@ export default function CommandPalette({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Search support questions"
+            placeholder="Search request history"
             autoComplete="off"
           />
           <button
@@ -98,11 +98,11 @@ export default function CommandPalette({
         </div>
 
         <div className="command-dialog__body">
-          <h2 id="command-title">Example questions</h2>
+          <h2 id="command-title">Request history</h2>
           <p className="command-dialog__count" aria-live="polite">
             {filteredQuestions.length} available
           </p>
-          <div role="listbox" aria-label="Example questions">
+          <div role="listbox" aria-label="Request history">
             {filteredQuestions.map((question, index) => (
               <button
                 key={question}
@@ -120,7 +120,9 @@ export default function CommandPalette({
             ))}
             {filteredQuestions.length === 0 && (
               <p className="command-dialog__empty">
-                No matching examples. Write your own question in the workspace.
+                {questions.length === 0
+                  ? "No requests yet. Completed questions appear here."
+                  : "No matching requests."}
               </p>
             )}
           </div>

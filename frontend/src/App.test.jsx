@@ -48,65 +48,60 @@ describe("OrbitDesk workspace", () => {
       name: "Find the answer. Keep the evidence.",
     })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "No answer yet" })).toBeInTheDocument();
+    expect(screen.getByText("No requests yet")).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Retrieval" }))
+      .not.toBeInTheDocument();
     expect(await screen.findByText("API ready")).toBeInTheDocument();
   });
 
-  it("loads an example question and renders the grounded result", async () => {
+  it("submits a question and adds it to session history", async () => {
     const user = userEvent.setup();
     askSupport.mockResolvedValue(groundedResult);
     render(<App />);
 
-    await user.click(screen.getByRole("button", {
-      name: "Can a Viewer create an OrbitDesk API credential?",
-    }));
+    const question = screen.getByRole("textbox", { name: "Ask about OrbitDesk" });
+    await user.type(question, "Can a Viewer create an OrbitDesk API credential?");
     await user.click(screen.getByRole("button", { name: "Ask OrbitDesk" }));
 
     await waitFor(() => {
       expect(askSupport).toHaveBeenCalledWith({
         question: "Can a Viewer create an OrbitDesk API credential?",
-        retrieval: "keyword",
       });
     });
     expect(await screen.findByText(
       "Only Owners and Admins can create API credentials.",
     )).toBeInTheDocument();
     expect(screen.getByText("92% confidence")).toBeInTheDocument();
+    expect(screen.getByRole("button", {
+      name: "Can a Viewer create an OrbitDesk API credential?",
+    })).toBeInTheDocument();
   });
 
-  it("filters and selects a question from the command palette", async () => {
+  it("collapses and expands request history", async () => {
     const user = userEvent.setup();
     render(<App />);
 
     await user.click(screen.getByRole("button", {
-      name: "Open example question search",
+      name: "Hide request history",
     }));
-    await user.type(
-      screen.getByRole("textbox", { name: "Search example support questions" }),
-      "timezone",
-    );
+    expect(screen.queryByRole("complementary", { name: "Request history" }))
+      .not.toBeInTheDocument();
 
-    expect(screen.getByText("1 available")).toBeInTheDocument();
-    await user.click(screen.getByRole("option", {
-      name: "Which timezone controls a scheduled export?",
+    await user.click(screen.getByRole("button", {
+      name: "Show request history",
     }));
-
-    expect(screen.getByRole("textbox", { name: "Ask about OrbitDesk" }))
-      .toHaveValue("Which timezone controls a scheduled export?");
+    expect(screen.getByRole("complementary", { name: "Request history" }))
+      .toBeInTheDocument();
   });
 
-  it("keeps keyboard navigation stable when no command matches", async () => {
+  it("opens empty request history search without seeded questions", async () => {
     const user = userEvent.setup();
     render(<App />);
 
     await user.click(screen.getByRole("button", {
-      name: "Open example question search",
+      name: "Open request history search",
     }));
-    const search = screen.getByRole("textbox", {
-      name: "Search example support questions",
-    });
-    await user.type(search, "no matching question{ArrowDown}{ArrowUp}{Enter}");
-
-    expect(screen.getByText("No matching examples. Write your own question in the workspace."))
+    expect(screen.getByText("No requests yet. Completed questions appear here."))
       .toBeInTheDocument();
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });

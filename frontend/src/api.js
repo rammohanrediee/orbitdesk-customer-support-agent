@@ -30,7 +30,7 @@ export function getHealth({ signal } = {}) {
   return requestJson("/api/health", { signal });
 }
 
-export async function askSupport({ question, retrieval }) {
+export async function askSupport({ question }) {
   const controller = new AbortController();
   const timeout = window.setTimeout(
     () => controller.abort(),
@@ -41,7 +41,7 @@ export async function askSupport({ question, retrieval }) {
     return await requestJson("/api/support", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question, retrieval }),
+      body: JSON.stringify({ question }),
       signal: controller.signal,
     });
   } catch (error) {

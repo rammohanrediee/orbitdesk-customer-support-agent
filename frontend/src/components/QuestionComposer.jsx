@@ -3,10 +3,8 @@ import { useId, useState } from "react";
 
 export default function QuestionComposer({
   question,
-  retrieval,
   status,
   onQuestionChange,
-  onRetrievalChange,
   onSubmit,
 }) {
   const helperId = useId();
@@ -71,18 +69,6 @@ export default function QuestionComposer({
       </div>
 
       <div className="composer__actions">
-        <label className="retrieval-control">
-          <span>Retrieval</span>
-          <select
-            value={retrieval}
-            onChange={(event) => onRetrievalChange(event.target.value)}
-            disabled={loading}
-          >
-            <option value="keyword">Keyword</option>
-            <option value="semantic">Semantic</option>
-          </select>
-        </label>
-
         <span className="composer__shortcut" aria-hidden="true">
           <kbd>⌘</kbd><kbd>↵</kbd>
         </span>

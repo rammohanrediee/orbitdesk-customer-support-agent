@@ -26,12 +26,11 @@ describe("support API client", () => {
     expect(fetch).toHaveBeenCalledWith("/api/health", { signal });
   });
 
-  it("sends the question and retrieval mode as JSON", async () => {
+  it("sends only the question and leaves retrieval to OrbitDesk", async () => {
     fetch.mockResolvedValue(jsonResponse({ response: { answer: "Grounded" } }));
 
     await expect(askSupport({
       question: "Who can create credentials?",
-      retrieval: "keyword",
     })).resolves.toEqual({ response: { answer: "Grounded" } });
 
     expect(fetch).toHaveBeenCalledWith("/api/support", expect.objectContaining({
@@ -39,7 +38,6 @@ describe("support API client", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         question: "Who can create credentials?",
-        retrieval: "keyword",
       }),
     }));
   });
@@ -52,7 +50,6 @@ describe("support API client", () => {
 
     await expect(askSupport({
       question: "Find a semantic match",
-      retrieval: "semantic",
     })).rejects.toThrow("Semantic retrieval is not installed on this server.");
   });
 
@@ -79,7 +76,6 @@ describe("support API client", () => {
 
     const request = askSupport({
       question: "Why did this request take too long?",
-      retrieval: "keyword",
     });
     const rejection = expect(request).rejects.toThrow(
       "The support request reached its time limit. Try a shorter question.",

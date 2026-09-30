@@ -3,6 +3,8 @@ import {
   Activity,
   CircleDot,
   Command,
+  PanelLeftClose,
+  PanelLeftOpen,
   Search,
   SquareArrowOutUpRight,
 } from "lucide-react";
@@ -13,17 +15,10 @@ import HistoryRail from "./components/HistoryRail.jsx";
 import Inspector from "./components/Inspector.jsx";
 import QuestionComposer from "./components/QuestionComposer.jsx";
 
-const EXAMPLE_QUESTIONS = [
-  "Can a Viewer create an OrbitDesk API credential?",
-  "Which timezone controls a scheduled export?",
-  "A connection refresh failed. What details should support collect?",
-  "Two exports returned render_failed after documented checks. What next?",
-  "What information is safe to include in an escalation?",
-];
-
 export default function App() {
   const [question, setQuestion] = useState("");
-  const [retrieval, setRetrieval] = useState("keyword");
+  const [history, setHistory] = useState([]);
+  const [historyOpen, setHistoryOpen] = useState(true);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
@@ -66,14 +61,16 @@ export default function App() {
   }
 
   async function submitQuestion() {
+    const submittedQuestion = question.trim();
     setStatus("loading");
     setError("");
     try {
-      const nextResult = await askSupport({
-        question: question.trim(),
-        retrieval,
-      });
+      const nextResult = await askSupport({ question: submittedQuestion });
       setResult(nextResult);
+      setHistory((current) => [
+        submittedQuestion,
+        ...current.filter((item) => item !== submittedQuestion),
+      ].slice(0, 20));
       setStatus("success");
     } catch (requestError) {
       setStatus("error");
@@ -87,19 +84,38 @@ export default function App() {
     <div className="app-shell">
       <header className="product-nav">
         <div className="product-nav__inner">
-          <a className="wordmark" href="#workspace" aria-label="OrbitDesk home">
-            <span className="wordmark__mark" aria-hidden="true">O</span>
-            <span>OrbitDesk</span>
-          </a>
+          <div className="product-nav__brand">
+            <button
+              className="icon-button"
+              type="button"
+              aria-controls="request-history"
+              aria-expanded={historyOpen}
+              aria-label={historyOpen
+                ? "Hide request history"
+                : "Show request history"}
+              title={historyOpen
+                ? "Hide request history"
+                : "Show request history"}
+              onClick={() => setHistoryOpen((current) => !current)}
+            >
+              {historyOpen
+                ? <PanelLeftClose aria-hidden="true" size={18} />
+                : <PanelLeftOpen aria-hidden="true" size={18} />}
+            </button>
+            <a className="wordmark" href="#workspace" aria-label="OrbitDesk home">
+              <span className="wordmark__mark" aria-hidden="true">O</span>
+              <span>OrbitDesk</span>
+            </a>
+          </div>
 
           <button
             className="search-trigger"
             type="button"
             onClick={() => setCommandOpen(true)}
-            aria-label="Open example question search"
+            aria-label="Open request history search"
           >
             <Search aria-hidden="true" size={17} />
-            <span>Search questions</span>
+            <span>Search history</span>
             <span className="search-trigger__shortcut" aria-hidden="true">
               <kbd>⌘</kbd><kbd>K</kbd>
             </span>
@@ -132,8 +148,14 @@ export default function App() {
         </div>
       </header>
 
-      <div className="workspace-grid" id="workspace">
-        <HistoryRail questions={EXAMPLE_QUESTIONS} onChoose={chooseQuestion} />
+      <div
+        className="workspace-grid"
+        id="workspace"
+        data-history-open={historyOpen}
+      >
+        {historyOpen && (
+          <HistoryRail questions={history} onChoose={chooseQuestion} />
+        )}
 
         <main className="support-workspace">
           <div className="support-workspace__intro">
@@ -151,10 +173,8 @@ export default function App() {
 
           <QuestionComposer
             question={question}
-            retrieval={retrieval}
             status={status}
             onQuestionChange={updateQuestion}
-            onRetrievalChange={setRetrieval}
             onSubmit={submitQuestion}
           />
 
@@ -177,7 +197,7 @@ export default function App() {
 
       <CommandPalette
         open={commandOpen}
-        questions={EXAMPLE_QUESTIONS}
+        questions={history}
         onClose={() => setCommandOpen(false)}
         onChoose={chooseQuestion}
       />

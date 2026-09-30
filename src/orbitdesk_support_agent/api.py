@@ -6,11 +6,11 @@ from functools import lru_cache
 import os
 from pathlib import Path
 from time import perf_counter
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from orbitdesk_support_agent.graph import build_graph
 from orbitdesk_support_agent.indexer import build_evidence_records
@@ -34,11 +34,13 @@ DEFAULT_ALLOWED_ORIGINS = (
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 )
+DEFAULT_RETRIEVAL_MODE = "keyword"
 
 
 class SupportRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     question: str = Field(min_length=3, max_length=2_000)
-    retrieval: Literal["keyword", "semantic"] = "keyword"
 
 
 class SupportResult(BaseModel):
@@ -54,6 +56,7 @@ class HealthResult(BaseModel):
     status: Literal["ready", "configuration_required"]
     model: str
     api_key_configured: bool
+    retrieval_mode: str
 
 
 def _allowed_origins() -> list[str]:
@@ -65,6 +68,23 @@ def _allowed_origins() -> list[str]:
         for origin in configured.split(",")
         if origin.strip()
     ]
+
+
+def _configured_retrieval_mode() -> Literal["keyword", "semantic"]:
+    """Return the operator-selected retrieval strategy.
+
+    Retrieval is an application concern, not an end-user decision. Keeping the
+    choice server-side also prevents unsupported modes from reaching runtime.
+    """
+    mode = os.getenv(
+        "ORBITDESK_RETRIEVAL_MODE",
+        DEFAULT_RETRIEVAL_MODE,
+    ).strip().lower()
+    if mode not in {"keyword", "semantic"}:
+        raise ValueError(
+            "ORBITDESK_RETRIEVAL_MODE must be 'keyword' or 'semantic'."
+        )
+    return cast(Literal["keyword", "semantic"], mode)
 
 
 @lru_cache(maxsize=1)
@@ -100,14 +120,15 @@ def run_support_workflow(payload: SupportRequest) -> SupportResult:
     if timeout_seconds <= 0:
         raise ValueError("Workflow timeout must be positive.")
 
-    records, llm, graph = build_runtime(payload.retrieval)
+    retrieval_mode = _configured_retrieval_mode()
+    records, llm, graph = build_runtime(retrieval_mode)
     started_at = perf_counter()
 
     with request_trace(timeout_seconds=timeout_seconds) as trace:
         record_trace_event(
             "request.started",
             question_chars=len(payload.question),
-            retrieval_mode=payload.retrieval,
+            retrieval_mode=retrieval_mode,
         )
         final_state = graph.invoke(
             {
@@ -158,11 +179,22 @@ app.add_middleware(
 
 @app.get("/api/health", response_model=HealthResult)
 def health() -> HealthResult:
-    configured = bool(os.getenv("OPENROUTER_API_KEY", "").strip())
+    api_key_configured = bool(os.getenv("OPENROUTER_API_KEY", "").strip())
+    try:
+        retrieval_mode = _configured_retrieval_mode()
+        retrieval_configured = True
+    except ValueError:
+        retrieval_mode = "invalid"
+        retrieval_configured = False
     return HealthResult(
-        status="ready" if configured else "configuration_required",
+        status=(
+            "ready"
+            if api_key_configured and retrieval_configured
+            else "configuration_required"
+        ),
         model=os.getenv("OPENROUTER_MODEL", DEFAULT_OPENROUTER_MODEL),
-        api_key_configured=configured,
+        api_key_configured=api_key_configured,
+        retrieval_mode=retrieval_mode,
     )
 
 

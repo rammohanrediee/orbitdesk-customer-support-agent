@@ -1,5 +1,5 @@
 import { Braces, Copy, FileSearch, Gauge, Workflow } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function Inspector({ result }) {
   const [tab, setTab] = useState("request");
@@ -7,12 +7,17 @@ export default function Inspector({ result }) {
   const traceId = result?.trace?.trace_id;
   const events = result?.trace?.events ?? [];
 
+  useEffect(() => {
+    if (!copied) return undefined;
+    const timeout = window.setTimeout(() => setCopied(false), 2500);
+    return () => window.clearTimeout(timeout);
+  }, [copied]);
+
   async function copyTraceId() {
     if (!traceId) return;
     try {
       await navigator.clipboard.writeText(traceId);
       setCopied(true);
-      window.setTimeout(() => setCopied(false), 2500);
     } catch {
       setCopied(false);
     }

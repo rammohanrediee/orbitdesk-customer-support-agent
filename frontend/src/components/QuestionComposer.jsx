@@ -20,6 +20,18 @@ export default function QuestionComposer({
       ? "success"
       : status;
 
+  let buttonIcon = <Send aria-hidden="true" size={17} />;
+  let buttonLabel = "Ask OrbitDesk";
+  if (buttonState === "loading") {
+    buttonIcon = <LoaderCircle className="spinner" aria-hidden="true" size={17} />;
+    buttonLabel = "Checking sources…";
+  } else if (buttonState === "error") {
+    buttonIcon = <TriangleAlert aria-hidden="true" size={17} />;
+  } else if (buttonState === "success") {
+    buttonIcon = <Check aria-hidden="true" size={17} />;
+    buttonLabel = "Answer ready";
+  }
+
   function handleSubmit(event) {
     event.preventDefault();
     setTouched(true);
@@ -82,22 +94,8 @@ export default function QuestionComposer({
           data-state={buttonState}
           aria-busy={loading}
         >
-          {loading ? (
-            <LoaderCircle className="spinner" aria-hidden="true" size={17} />
-          ) : buttonState === "error" ? (
-            <TriangleAlert aria-hidden="true" size={17} />
-          ) : buttonState === "success" ? (
-            <Check aria-hidden="true" size={17} />
-          ) : (
-            <Send aria-hidden="true" size={17} />
-          )}
-          <span>
-            {loading
-              ? "Checking sources…"
-              : buttonState === "success"
-                ? "Answer ready"
-                : "Ask OrbitDesk"}
-          </span>
+          {buttonIcon}
+          <span>{buttonLabel}</span>
         </button>
       </div>
     </form>

@@ -35,16 +35,22 @@ export default function CommandPalette({
     setActiveIndex(0);
   }, [query]);
 
+  function moveActiveIndex(offset) {
+    if (filteredQuestions.length === 0) return;
+    setActiveIndex((current) => Math.min(
+      Math.max(current + offset, 0),
+      filteredQuestions.length - 1,
+    ));
+  }
+
   function handleKeyDown(event) {
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      setActiveIndex((current) =>
-        Math.min(current + 1, filteredQuestions.length - 1),
-      );
+      moveActiveIndex(1);
     }
     if (event.key === "ArrowUp") {
       event.preventDefault();
-      setActiveIndex((current) => Math.max(current - 1, 0));
+      moveActiveIndex(-1);
     }
     if (event.key === "Enter" && filteredQuestions[activeIndex]) {
       event.preventDefault();

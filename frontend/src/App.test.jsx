@@ -72,4 +72,42 @@ describe("OrbitDesk workspace", () => {
     )).toBeInTheDocument();
     expect(screen.getByText("92% confidence")).toBeInTheDocument();
   });
+
+  it("filters and selects a question from the command palette", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", {
+      name: "Open example question search",
+    }));
+    await user.type(
+      screen.getByRole("textbox", { name: "Search example support questions" }),
+      "timezone",
+    );
+
+    expect(screen.getByText("1 available")).toBeInTheDocument();
+    await user.click(screen.getByRole("option", {
+      name: "Which timezone controls a scheduled export?",
+    }));
+
+    expect(screen.getByRole("textbox", { name: "Ask about OrbitDesk" }))
+      .toHaveValue("Which timezone controls a scheduled export?");
+  });
+
+  it("keeps keyboard navigation stable when no command matches", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", {
+      name: "Open example question search",
+    }));
+    const search = screen.getByRole("textbox", {
+      name: "Search example support questions",
+    });
+    await user.type(search, "no matching question{ArrowDown}{ArrowUp}{Enter}");
+
+    expect(screen.getByText("No matching examples. Write your own question in the workspace."))
+      .toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
 });

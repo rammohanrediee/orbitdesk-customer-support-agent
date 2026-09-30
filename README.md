@@ -17,7 +17,7 @@ are not exact excerpts from the retrieved sources.
 [![Sentence Transformers](https://img.shields.io/badge/Sentence_Transformers-Optional_Semantic_Retrieval-2E7D32?style=for-the-badge)](https://www.sbert.net/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-Optional_ML_Runtime-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org/)
 [![Hugging Face](https://img.shields.io/badge/Hugging_Face-Optional_Local_Runtime-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black)](https://huggingface.co/docs/transformers/)
-[![pytest](https://img.shields.io/badge/pytest-66_Passing-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)](https://docs.pytest.org/)
+[![pytest](https://img.shields.io/badge/pytest-69_Passing-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)](https://docs.pytest.org/)
 [![Coverage](https://img.shields.io/badge/Coverage-81%25-2E7D32?style=for-the-badge)](https://coverage.readthedocs.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-6DAE30?style=for-the-badge)](LICENSE)
 
@@ -89,12 +89,18 @@ port 8000. Interactive API documentation is available at
 `http://127.0.0.1:8000/api/docs`.
 
 Keyword retrieval is the dependency-light default. Local semantic retrieval
-is available as an optional extra:
+is available as an optional extra. The browser does not ask support users to
+choose an implementation detail; operators select the API strategy once with
+`ORBITDESK_RETRIEVAL_MODE`:
 
 ```bash
 python -m pip install -e '.[semantic]'
-orbitdesk-support --retrieval semantic 'your question'
+export ORBITDESK_RETRIEVAL_MODE=semantic
+orbitdesk-api
 ```
+
+The CLI retains `--retrieval` for engineering experiments and benchmark
+comparisons.
 
 ## Evaluation and tests
 
@@ -112,8 +118,9 @@ npm test
 npm run build
 ```
 
-The current keyword baseline scores HitRate@4 `1.0` and MRR `0.9` across ten
-queries. Coverage is configured to fail below 80% for the core modules.
+The checked-in benchmark contains 14 labeled queries across product guidance
+and incident-resolution cases. Coverage is configured to fail below 80% for
+the core modules.
 
 ## Reliability boundaries
 

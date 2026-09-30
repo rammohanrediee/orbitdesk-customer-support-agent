@@ -134,6 +134,73 @@
         "Confirmed that the audit update and schedule save represented the same moment"
       ],
       "source_documents": ["KB-003", "KB-009"]
+    },
+    {
+      "case_id": "CASE-1144",
+      "status": "resolved",
+      "product_version": "4.2",
+      "title": "Suspected workspace API credential exposure",
+      "symptoms": [
+        "Customer reported that a credential may have appeared in a CI log",
+        "The credential had export:read and connection:read scopes"
+      ],
+      "resolution": [
+        "Owner revoked the credential immediately and created a replacement with only the required scope",
+        "Admin reviewed credential audit events and affected integration activity",
+        "Support recorded credential ID, workspace ID and timestamps without requesting the secret value"
+      ],
+      "important_limit": "Support treated the credential as exposed but did not ask the customer to paste it into the case.",
+      "source_documents": ["KB-005", "KB-008", "KB-010"]
+    },
+    {
+      "case_id": "CASE-1152",
+      "status": "escalated",
+      "product_version": "4.2",
+      "title": "Connector internal error repeated after retry",
+      "symptoms": [
+        "Two refresh attempts returned connector_internal_error",
+        "Connection configuration and upstream service health were unchanged"
+      ],
+      "resolution": [
+        "Collected workspace ID, connection ID, both refresh IDs, timestamps and the exact error code",
+        "Escalated to the Connectors team after the documented retry boundary was reached",
+        "Excluded database credentials and OAuth tokens from the escalation"
+      ],
+      "source_documents": ["KB-006", "KB-008"]
+    },
+    {
+      "case_id": "CASE-1168",
+      "status": "resolved",
+      "product_version": "4.2",
+      "title": "Requested export was outside delivery retention",
+      "symptoms": [
+        "Customer requested the exact attachment from a run completed nine days earlier",
+        "Run history still showed a successful delivery"
+      ],
+      "resolution": [
+        "Explained that delivered export artifacts are retained for seven days",
+        "Analyst reran the export after confirming that current dashboard data was acceptable",
+        "Clarified that the rerun could contain newer data than the original attachment"
+      ],
+      "important_limit": "The original expired attachment could not be restored or represented as identical by support.",
+      "source_documents": ["KB-007"]
+    },
+    {
+      "case_id": "CASE-1176",
+      "status": "resolved",
+      "product_version": "4.2",
+      "title": "Audit event request exceeded retention window",
+      "symptoms": [
+        "Admin searched for a workspace-role change from 104 days earlier",
+        "No matching event appeared in the audit log"
+      ],
+      "resolution": [
+        "Confirmed that workspace audit events are retained for 90 days",
+        "Explained that an absent expired event does not prove the action did not occur",
+        "Directed the customer to their external compliance archive for older records"
+      ],
+      "important_limit": "OrbitDesk support could not reconstruct an audit event after retention expiry.",
+      "source_documents": ["KB-009"]
     }
   ]
 }

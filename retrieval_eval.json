@@ -50,6 +50,26 @@
       "case_id": "EVAL-010",
       "question": "What are the differences between Owner, Admin, Analyst, and Viewer permissions?",
       "expected_source_ids": ["KB-002"]
+    },
+    {
+      "case_id": "EVAL-011",
+      "question": "A workspace credential may have leaked in a CI log. What should support collect and what must it avoid requesting?",
+      "expected_source_ids": ["KB-005", "KB-008", "KB-010", "CASE-1144"]
+    },
+    {
+      "case_id": "EVAL-012",
+      "question": "When should connector_internal_error be escalated after repeated refresh failures?",
+      "expected_source_ids": ["KB-006", "KB-008", "CASE-1152"]
+    },
+    {
+      "case_id": "EVAL-013",
+      "question": "Can support resend the exact export attachment after its seven-day retention period?",
+      "expected_source_ids": ["KB-007", "CASE-1168"]
+    },
+    {
+      "case_id": "EVAL-014",
+      "question": "What does a missing audit event older than 90 days prove?",
+      "expected_source_ids": ["KB-009", "CASE-1176"]
     }
   ]
 }

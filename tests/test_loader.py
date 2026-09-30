@@ -28,7 +28,7 @@ def test_load_knowledge_base() -> None:
 def test_load_resolved_cases() -> None:
     cases = load_resolved_cases(RESOLVED_CASES_PATH)
 
-    assert len(cases) == 8
+    assert len(cases) == 12
     assert cases[0]["case_id"] == "CASE-1041"
     assert sum(case["status"] == "superseded" for case in cases) == 1
 

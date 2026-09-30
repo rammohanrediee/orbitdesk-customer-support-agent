@@ -16,13 +16,13 @@ def test_build_evidence_records_combines_all_sources() -> None:
 
     records = build_evidence_records(documents, cases)
 
-    assert len(records) == 18
+    assert len(records) == 22
     assert sum(
         record["source_type"] == "knowledge_base" for record in records
     ) == 10
     assert sum(
         record["source_type"] == "resolved_case" for record in records
-    ) == 8
+    ) == 12
 
 
 def test_build_evidence_records_preserves_source_information() -> None:

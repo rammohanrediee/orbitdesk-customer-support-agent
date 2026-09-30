@@ -26,7 +26,7 @@ class SyntheticDataTests(unittest.TestCase):
         source_ids = [record["source_id"] for record in records]
 
         self.assertGreaterEqual(len(documents), 5)
-        self.assertGreaterEqual(len(cases), 5)
+        self.assertGreaterEqual(len(cases), 12)
         self.assertEqual(len(source_ids), len(set(source_ids)))
 
     def test_retrieval_evaluation_data_references_known_sources(self):
@@ -38,7 +38,7 @@ class SyntheticDataTests(unittest.TestCase):
             (PROJECT_ROOT / "retrieval_eval.json").read_text(encoding="utf-8")
         )
 
-        self.assertGreaterEqual(len(evaluation_data["cases"]), 8)
+        self.assertGreaterEqual(len(evaluation_data["cases"]), 14)
         for evaluation_case in evaluation_data["cases"]:
             self.assertTrue(
                 set(evaluation_case["expected_source_ids"]) <= known_ids

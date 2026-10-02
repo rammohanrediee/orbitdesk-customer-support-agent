@@ -63,6 +63,7 @@ class OpenRouterConfigTests(unittest.TestCase):
             config = OpenRouterConfig.from_env()
 
         self.assertEqual(config.model, "z-ai/glm-4.5-air")
+        self.assertGreaterEqual(config.max_output_tokens, 768)
 
     def test_rejects_unbounded_attempt_configuration(self):
         with self.assertRaisesRegex(ValueError, "between 1 and 5"):

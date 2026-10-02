@@ -1,15 +1,26 @@
 import {
   BookMarked,
   CircleAlert,
-  Quote,
   ShieldCheck,
 } from "lucide-react";
+import EvidenceSource from "./EvidenceSource.jsx";
+import ReviewPanel from "./ReviewPanel.jsx";
 
 function classificationLabel(classification) {
   return classification?.replaceAll("_", " ") ?? "waiting";
 }
 
-export default function AnswerPanel({ result, status, error }) {
+const reasonLabels = {
+  INSUFFICIENT_EVIDENCE: "Insufficient evidence",
+  INSUFFICIENT_INFORMATION: "More information needed",
+  CONFLICTING_SOURCES: "Conflicting sources",
+  OUT_OF_SCOPE: "Outside support scope",
+  VERIFICATION_FAILED: "Source verification failed",
+  MODEL_FAILURE: "Model unavailable",
+  POLICY_REQUIRES_HUMAN: "Policy requires a person",
+};
+
+export default function AnswerPanel({ result, ticket, status, error, reviewError, reviewBusy, onReview }) {
   if (status === "error") {
     return (
       <section className="answer-panel answer-panel--error" aria-live="polite">
@@ -50,17 +61,24 @@ export default function AnswerPanel({ result, status, error }) {
           <ShieldCheck aria-hidden="true" size={18} />
           <span>{classificationLabel(response.classification)}</span>
         </div>
-        <span className="answer-panel__confidence">
-          {Math.round(response.confidence * 100)}% confidence
-        </span>
       </header>
 
       <div className="answer-panel__body">
-        <h2>Grounded answer</h2>
+        <h2>Support draft</h2>
         <p className="answer-panel__answer">{response.answer}</p>
         {response.clarification_question && (
           <p className="answer-panel__clarification">
             {response.clarification_question}
+          </p>
+        )}
+        {response.requires_human && (
+          <p className="answer-panel__escalation">
+            Human review required: {response.reason}
+          </p>
+        )}
+        {response.reason_code && (
+          <p className="answer-panel__reason-code">
+            {reasonLabels[response.reason_code] ?? response.reason_code}
           </p>
         )}
       </div>
@@ -70,21 +88,20 @@ export default function AnswerPanel({ result, status, error }) {
         {response.sources.length ? (
           <ol>
             {response.sources.map((source) => (
-              <li key={`${source.source_id}-${source.passage}`}>
-                <div>
-                  <code>{source.source_id}</code>
-                  <p>“{source.passage}”</p>
-                </div>
-                <Quote aria-hidden="true" size={15} />
-              </li>
+              <EvidenceSource key={`${source.source_id}-${source.passage}`} source={source} />
             ))}
           </ol>
         ) : (
           <p className="answer-panel__secondary">
-            This route did not require retrieved evidence.
+            {response.reason_code === "INSUFFICIENT_EVIDENCE"
+              ? "No relevant source was found for this question."
+              : "This route did not require retrieved evidence."}
           </p>
         )}
       </div>
+
+      {ticket && <ReviewPanel key={ticket.id} ticket={ticket} busy={reviewBusy}
+        error={reviewError} onReview={onReview} />}
     </section>
   );
 }

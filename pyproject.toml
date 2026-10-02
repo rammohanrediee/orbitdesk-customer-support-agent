@@ -4,13 +4,16 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "orbitdesk-support-agent"
-version = "0.2.0"
+version = "0.3.0"
 description = "A retrieval-grounded OrbitDesk support agent using OpenRouter."
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.116,<1",
   "langgraph>=1,<2",
   "pydantic>=2.11,<3",
+  "SQLAlchemy>=2.0,<3",
+  "alembic>=1.13,<2",
+  "psycopg[binary]>=3,<4",
   "PyYAML>=6,<7",
   "uvicorn[standard]>=0.35,<1",
 ]
@@ -35,6 +38,9 @@ dev = [
 [project.scripts]
 orbitdesk-support = "orbitdesk_support_agent.cli:main"
 orbitdesk-evaluate = "orbitdesk_support_agent.evaluation:main"
+orbitdesk-evaluate-answers = "orbitdesk_support_agent.answer_evaluation:main"
+orbitdesk-experiment = "orbitdesk_support_agent.experiments:main"
+orbitdesk-retention = "orbitdesk_support_agent.retention:main"
 orbitdesk-api = "orbitdesk_support_agent.api:main"
 
 [tool.setuptools.packages.find]

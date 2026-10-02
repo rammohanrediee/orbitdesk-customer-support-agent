@@ -24,6 +24,7 @@ def verify_response(
             "out_of_scope",
             "requires_clarification",
         }
+        and response.reason_code not in {"INSUFFICIENT_EVIDENCE", "CONFLICTING_SOURCES"}
     ):
         issues.append(
             "The response classification requires supporting evidence."
@@ -33,6 +34,7 @@ def verify_response(
         response.classification
         in {"answerable", "requires_escalation"}
         and not response.sources
+        and response.reason_code not in {"INSUFFICIENT_EVIDENCE", "CONFLICTING_SOURCES"}
     ):
         issues.append(
             f"{response.classification} responses must cite a source."
@@ -71,6 +73,10 @@ def verify_response(
             )
             continue
 
+        if record["status"] == "superseded":
+            issues.append(f"Source {source.source_id} is superseded.")
+            continue
+
         passage_tokens = tokenize(source.passage)
         if not passage_tokens:
             issues.append(
@@ -85,6 +91,11 @@ def verify_response(
             issues.append(
                 f"The cited passage for {source.source_id} is not an "
                 "exact excerpt of its retrieved evidence."
+            )
+
+        if source.claim and " ".join(source.claim.split()) not in " ".join(response.answer.split()):
+            issues.append(
+                f"The claim linked to {source.source_id} is not in the answer."
             )
 
     return VerificationResult(

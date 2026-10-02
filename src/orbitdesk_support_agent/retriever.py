@@ -8,7 +8,7 @@ ENGLISH_STOP_WORDS = frozenset(
     {
         "a", "an", "and", "are", "as", "at", "be", "by", "can",
         "do", "does", "for", "from", "how", "i", "in", "is", "it",
-        "my", "of", "on", "or", "that", "the", "this", "to", "was",
+        "may", "my", "of", "on", "or", "that", "the", "this", "to", "was",
         "what", "when", "where", "which", "who", "why", "with", "you",
         "your",
     }
@@ -30,8 +30,12 @@ def calculate_score(
     title_matches = question_tokens & title_tokens
     text_matches = question_tokens & text_tokens
 
-    # Title matches are stronger indicators than body-text matches.
-    return (len(title_matches) * 3) + len(text_matches)
+    # Reward coverage of the whole question as well as salient title matches.
+    # A role policy matching viewer, download, and export should beat a document
+    # whose title happens to contain only export.
+    coverage = len(question_tokens & (title_tokens | text_tokens))
+    coverage_bonus = (4 * coverage) // len(question_tokens)
+    return (len(title_matches) * 3) + len(text_matches) + coverage_bonus
 
 
 def retrieve_evidence(

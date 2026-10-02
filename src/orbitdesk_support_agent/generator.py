@@ -57,17 +57,18 @@ def generate_response(
 ) -> SupportResponse:
     if not records:
         return SupportResponse(
-            classification="safe_failure",
+            classification="requires_escalation",
             answer=(
-                "I could not find relevant information in the supplied "
-                "OrbitDesk knowledge base."
+                "I could not find enough OrbitDesk documentation to answer "
+                "this safely. A support specialist needs to review it."
             ),
             sources=[],
             confidence=0.0,
-            requires_human=False,
+            requires_human=True,
             reason="No relevant evidence was retrieved.",
+            reason_code="INSUFFICIENT_EVIDENCE",
             clarification_question=None,
-            warnings=["The local model was not called."],
+            warnings=["No answer was generated without evidence."],
         )
 
     output_schema = json.dumps(
@@ -82,7 +83,8 @@ def generate_response(
         f"{output_schema}\n\n"
         "Keep the answer under 100 words. Every citation passage must "
         "be copied exactly from the cited evidence. Give only "
-        "instructions supported by those exact excerpts."
+        "instructions supported by those exact excerpts. For each citation, "
+        "include a claim copied exactly from the answer that the passage supports."
     )
 
     if revision_feedback:
@@ -98,17 +100,25 @@ def generate_response(
     )
     parsed_response = extract_json_object(raw_response)
     generated = GeneratedAnswer.model_validate(parsed_response)
-    retrieved_ids = {record["source_id"] for record in records}
+    retrieved_by_id = {record["source_id"]: record for record in records}
     for citation in generated.citations:
-        if citation.source_id not in retrieved_ids:
+        if citation.source_id not in retrieved_by_id:
             raise ValueError(
                 f"Cited source {citation.source_id} was not retrieved."
             )
 
+    enriched_citations = [
+        citation.model_copy(update={
+            "source_title": retrieved_by_id[citation.source_id]["title"],
+            "source_type": retrieved_by_id[citation.source_id]["source_type"],
+        })
+        for citation in generated.citations
+    ]
+
     return SupportResponse(
         classification=expected_classification,
         answer=generated.answer,
-        sources=generated.citations,
+        sources=enriched_citations,
         confidence=generated.confidence,
         requires_human=(
             expected_classification == "requires_escalation"
@@ -116,6 +126,11 @@ def generate_response(
         reason=(
             "The answer was generated from the retrieved local "
             "OrbitDesk evidence."
+        ),
+        reason_code=(
+            "POLICY_REQUIRES_HUMAN"
+            if expected_classification == "requires_escalation"
+            else None
         ),
         clarification_question=None,
         warnings=[],

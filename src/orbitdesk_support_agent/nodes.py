@@ -284,9 +284,11 @@ def create_safe_failure_node() -> Callable[[AgentState], AgentState]:
             confidence=0.0,
             requires_human=False,
             reason=(
-                "The generated response did not pass verification "
-                "after the allowed retries."
+                "The model or triage dependency failed."
+                if state.get("error")
+                else "The generated response did not pass verification after the allowed retries."
             ),
+            reason_code=("MODEL_FAILURE" if state.get("error") else "VERIFICATION_FAILED"),
             clarification_question=None,
             warnings=issues,
         )
@@ -361,6 +363,7 @@ def create_clarification_node() -> Callable[[AgentState], AgentState]:
             confidence=0.0,
             requires_human=False,
             reason=reason,
+            reason_code="INSUFFICIENT_INFORMATION",
             clarification_question=clarification_question,
             warnings=[],
         )
@@ -394,6 +397,7 @@ def create_out_of_scope_node() -> Callable[[AgentState], AgentState]:
             confidence=1.0,
             requires_human=False,
             reason=reason,
+            reason_code="OUT_OF_SCOPE",
             clarification_question=None,
             warnings=[],
         )

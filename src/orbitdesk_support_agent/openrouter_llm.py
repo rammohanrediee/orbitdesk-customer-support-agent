@@ -128,7 +128,7 @@ class OpenRouterConfig:
     base_retry_delay_seconds: float = 0.25
     max_retry_delay_seconds: float = 2.0
     max_input_chars: int = 16_000
-    max_output_tokens: int = 256
+    max_output_tokens: int = 768
     app_url: str | None = None
     app_title: str = "OrbitDesk Support Agent"
 
@@ -170,7 +170,7 @@ class OpenRouterConfig:
             ),
             max_attempts=_env_int("OPENROUTER_MAX_ATTEMPTS", 3),
             max_input_chars=_env_int("ORBITDESK_MAX_LLM_INPUT_CHARS", 16_000),
-            max_output_tokens=_env_int("ORBITDESK_MAX_OUTPUT_TOKENS", 256),
+            max_output_tokens=_env_int("ORBITDESK_MAX_OUTPUT_TOKENS", 768),
             app_url=os.getenv("OPENROUTER_APP_URL") or None,
             app_title=os.getenv(
                 "OPENROUTER_APP_TITLE",

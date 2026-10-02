@@ -34,6 +34,15 @@ def test_retrieve_evidence_finds_api_credential_sources() -> None:
     assert len(results) <= 4
 
 
+def test_viewer_download_question_retrieves_role_policy() -> None:
+    results = retrieve_evidence(
+        "When may a Viewer download an export?",
+        _load_records(),
+        limit=4,
+    )
+    assert "KB-002" in [record["source_id"] for record in results]
+
+
 def test_retrieve_evidence_excludes_superseded_records() -> None:
     results = retrieve_evidence(
         "legacy personal token",

@@ -3,7 +3,7 @@ import { CornerDownLeft, Search, X } from "lucide-react";
 
 export default function CommandPalette({
   open,
-  questions,
+  tickets,
   onClose,
   onChoose,
 }) {
@@ -12,13 +12,13 @@ export default function CommandPalette({
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
 
-  const filteredQuestions = useMemo(() => {
+  const filteredTickets = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    if (!normalized) return questions;
-    return questions.filter((question) =>
-      question.toLowerCase().includes(normalized),
+    if (!normalized) return tickets;
+    return tickets.filter((ticket) =>
+      ticket.question.toLowerCase().includes(normalized),
     );
-  }, [query, questions]);
+  }, [query, tickets]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -36,10 +36,10 @@ export default function CommandPalette({
   }, [query]);
 
   function moveActiveIndex(offset) {
-    if (filteredQuestions.length === 0) return;
+    if (filteredTickets.length === 0) return;
     setActiveIndex((current) => Math.min(
       Math.max(current + offset, 0),
-      filteredQuestions.length - 1,
+      filteredTickets.length - 1,
     ));
   }
 
@@ -52,9 +52,9 @@ export default function CommandPalette({
       event.preventDefault();
       moveActiveIndex(-1);
     }
-    if (event.key === "Enter" && filteredQuestions[activeIndex]) {
+    if (event.key === "Enter" && filteredTickets[activeIndex]) {
       event.preventDefault();
-      onChoose(filteredQuestions[activeIndex]);
+      onChoose(filteredTickets[activeIndex]);
     }
   }
 
@@ -100,27 +100,27 @@ export default function CommandPalette({
         <div className="command-dialog__body">
           <h2 id="command-title">Request history</h2>
           <p className="command-dialog__count" aria-live="polite">
-            {filteredQuestions.length} available
+            {filteredTickets.length} available
           </p>
           <div role="listbox" aria-label="Request history">
-            {filteredQuestions.map((question, index) => (
+            {filteredTickets.map((ticket, index) => (
               <button
-                key={question}
+                key={ticket.id}
                 type="button"
                 className="command-dialog__option"
                 data-active={index === activeIndex}
                 role="option"
                 aria-selected={index === activeIndex}
                 onMouseEnter={() => setActiveIndex(index)}
-                onClick={() => onChoose(question)}
+                onClick={() => onChoose(ticket)}
               >
-                <span>{question}</span>
+                <span>{ticket.question}</span>
                 <CornerDownLeft aria-hidden="true" size={16} />
               </button>
             ))}
-            {filteredQuestions.length === 0 && (
+            {filteredTickets.length === 0 && (
               <p className="command-dialog__empty">
-                {questions.length === 0
+                {tickets.length === 0
                   ? "No requests yet. Completed questions appear here."
                   : "No matching requests."}
               </p>

@@ -19,6 +19,16 @@ TriageClassification = Literal[
 
 RetrievalMode = Literal["semantic", "keyword"]
 
+ReasonCode = Literal[
+    "INSUFFICIENT_EVIDENCE",
+    "INSUFFICIENT_INFORMATION",
+    "CONFLICTING_SOURCES",
+    "OUT_OF_SCOPE",
+    "VERIFICATION_FAILED",
+    "MODEL_FAILURE",
+    "POLICY_REQUIRES_HUMAN",
+]
+
 
 class Source(TypedDict):
     source_id: str
@@ -56,6 +66,9 @@ class EvidenceRecord(TypedDict):
 class SourceReference(BaseModel):
     source_id: str=Field(min_length=1, max_length=100)
     passage: str=Field(min_length=1, max_length=500)
+    source_title: str | None = None
+    source_type: str | None = None
+    claim: str | None = None
 
 
 class GeneratedAnswer(BaseModel):
@@ -70,6 +83,7 @@ class SupportResponse(BaseModel):
     confidence:float=Field(ge=0,le=1)
     requires_human:bool
     reason:str=Field(min_length=1)
+    reason_code: ReasonCode | None = None
     clarification_question:str|None=None
     warnings:list[str]=Field(default_factory=list)
 

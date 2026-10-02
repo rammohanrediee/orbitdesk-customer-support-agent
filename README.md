@@ -1,158 +1,119 @@
 # OrbitDesk Customer Support Agent
 
-OrbitDesk is a retrieval-grounded support workflow backed by OpenRouter. It
-loads a synthetic product knowledge base and resolved-case corpus, retrieves
-relevant evidence, produces a structured answer, and rejects citations that
-are not exact excerpts from the retrieved sources.
+OrbitDesk is a portfolio-grade, retrieval-grounded support workspace for a **fictional** SaaS product. A customer question becomes a saved ticket; the agent retrieves current product evidence, drafts an answer or escalation, verifies its citations, and leaves a human reviewer in control. The knowledge base, resolved cases, questions, and recorded demo answers are synthetic. Nothing is sent to a real customer.
 
-## Tech stack
+![OrbitDesk workflow](docs/orbitdesk-agent-graph.png)
 
-[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![React](https://img.shields.io/badge/React-19-087EA4?style=for-the-badge&logo=react&logoColor=white)](https://react.dev/)
-[![Vite](https://img.shields.io/badge/Vite-8-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vite.dev/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-HTTP_API-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![OpenRouter](https://img.shields.io/badge/OpenRouter-GLM_4.5_Air-6467F2?style=for-the-badge)](https://openrouter.ai/)
-[![LangGraph](https://img.shields.io/badge/LangGraph-Agent_Workflow-1C3C3C?style=for-the-badge)](https://www.langchain.com/langgraph)
-[![Pydantic](https://img.shields.io/badge/Pydantic-Typed_Schemas-E92063?style=for-the-badge&logo=pydantic&logoColor=white)](https://docs.pydantic.dev/)
-[![Sentence Transformers](https://img.shields.io/badge/Sentence_Transformers-Optional_Semantic_Retrieval-2E7D32?style=for-the-badge)](https://www.sbert.net/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-Optional_ML_Runtime-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org/)
-[![Hugging Face](https://img.shields.io/badge/Hugging_Face-Optional_Local_Runtime-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black)](https://huggingface.co/docs/transformers/)
-[![pytest](https://img.shields.io/badge/pytest-69_Passing-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)](https://docs.pytest.org/)
-[![Coverage](https://img.shields.io/badge/Coverage-81%25-2E7D32?style=for-the-badge)](https://coverage.readthedocs.io/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-6DAE30?style=for-the-badge)](LICENSE)
+## What the product does
 
-- OpenRouter with `z-ai/glm-4.5-air` handles generation and model-assisted
-  triage through a bounded standard-library HTTP client.
-- React and Vite provide the responsive agent workspace, source view, and
-  redacted request-trace inspector.
-- FastAPI exposes the existing bounded workflow to the browser without moving
-  model credentials into frontend code.
-- LangGraph coordinates triage, retrieval, generation, verification, retry,
-  and safe-failure routes.
-- Pydantic validates model output and the final support-response schema.
-- Dependency-light keyword retrieval is the default; Sentence Transformers
-  remains available for optional local semantic retrieval.
-- PyTorch and the Hugging Face ecosystem remain optional ML dependencies;
-  the default keyword/OpenRouter path does not require them.
+- LangGraph routes a question through triage, retrieval, generation, citation verification, one bounded retry, and safe failure. The default retriever is lightweight keyword search; semantic search is an optional local extra.
+- FastAPI stores tickets, normalized decisions, citation metadata, and reviewer actions in SQLAlchemy tables. PostgreSQL is the Compose database; Alembic owns its schema. A separate SQLite database is convenient for local development.
+- React shows persisted ticket history, the generated answer, why the agent escalated or asked for clarification, full source documents, a redacted trace, and approve/edit/escalate controls. No uncalibrated confidence percentage is shown to reviewers.
+- A fixed 30-case synthetic quality set checks routing and answer behavior. Saved experiment JSON makes retrieval versions comparable on the same dataset.
 
-![OrbitDesk agent graph](docs/orbitdesk-agent-graph.png)
+```mermaid
+flowchart LR
+  UI[React workspace] --> API[FastAPI]
+  API --> G[LangGraph triage]
+  G --> R[Keyword or semantic retrieval]
+  R --> L[OpenRouter generation]
+  L --> V[Citation verification]
+  V -->|pass| D[Decision + citations]
+  V -->|retry / fail safely| D
+  D --> PG[(PostgreSQL / local SQLite)]
+  PG --> UI
+  UI --> H[Human approve / edit / escalate]
+  H --> PG
+```
 
-## Model choice
+Knowledge-base documents are authoritative; resolved cases are secondary, and superseded cases are excluded from retrieval. A citation records its source ID, title, type, exact passage, and optional answer-claim link. Exact-passage verification is useful but **does not prove that every claim follows from the cited text**.
 
-OpenRouter does not currently list a Z.ai model named GLM 3.5. The default is
-`z-ai/glm-4.5-air`, the closest likely intended model for a low-latency support
-workflow. Set `OPENROUTER_MODEL` to use another OpenRouter model without a code
-change.
+## Run locally
 
-The former `LocalLanguageModel` import remains as a compatibility alias, but
-the CLI and sample runner now use the bounded OpenRouter client.
-
-## Setup
-
-Python 3.11 or newer is required.
+Requires Python 3.11+, Node.js 22+, and npm.
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e '.[dev]'
-cp .env.example .env
+cd frontend && npm ci && cd ..
 ```
 
-Export the API key in the shell before running the CLI. The application does
-not automatically read `.env`, so secrets are not loaded implicitly.
+For a keyless recorded demo, start the API and frontend in separate terminals:
 
 ```bash
-export OPENROUTER_API_KEY='your-key'
-orbitdesk-support --show-trace \
-  'Who can create an OrbitDesk API credential?'
+ORBITDESK_DEMO_MODE=1 .venv/bin/orbitdesk-api
 ```
-
-## Run the product
-
-Start the API from the activated Python environment. The same exported
-`OPENROUTER_API_KEY` is used by the browser workflow.
 
 ```bash
-orbitdesk-api
+cd frontend && npm run dev
 ```
 
-In a second terminal, install the frontend dependencies and start Vite:
+Open `http://127.0.0.1:5173`; the reader-facing [OrbitDesk product guide](frontend/docs/index.html) is at `/docs/`, while the support service's API reference is at `http://127.0.0.1:8000/api/docs`. The guide summarizes the checked-in Markdown knowledge base; the JSON files hold demo questions, recordings, and evaluation data. The five selectable answers are recordings, not fresh model generations. The default local database is `artifacts/orbitdesk-v2.sqlite3`. An older `artifacts/tickets.sqlite3` file, if present, is left untouched because its opaque-JSON schema is incompatible; point to a new database or migrate it separately after backing it up.
+
+For live questions, export `OPENROUTER_API_KEY` in the API shell and leave `ORBITDESK_DEMO_MODE` unset. The `.env` file is **not** automatically loaded by the Python app. Live calls may cost provider credits. `OPENROUTER_MODEL` defaults to `z-ai/glm-4.5-air`. The browser never receives the key. The output cap now defaults to 768 tokens; if an older local `.env` or shell pins `ORBITDESK_MAX_OUTPUT_TOKENS=256`, update that setting, since the smaller cap truncated live JSON in testing.
+
+### PostgreSQL demo with Docker Compose
 
 ```bash
-cd frontend
-npm install
-npm run dev
+export ORBITDESK_POSTGRES_PASSWORD='a-local-only-password'
+docker compose up --build
 ```
 
-Open `http://127.0.0.1:5173`. Vite proxies `/api` requests to the local API on
-port 8000. Interactive API documentation is available at
-`http://127.0.0.1:8000/api/docs`.
+Open `http://127.0.0.1:8000`. Compose builds the frontend, starts PostgreSQL, runs `alembic upgrade head` before the API, and retains tickets in a named volume. The container is bound to localhost; it is **not** an authenticated public deployment. Docker was not available for an end-to-end container run in this workspace, although `docker compose config` was validated.
 
-Keyword retrieval is the dependency-light default. Local semantic retrieval
-is available as an optional extra. The browser does not ask support users to
-choose an implementation detail; operators select the API strategy once with
-`ORBITDESK_RETRIEVAL_MODE`:
+For a private demo access gate, also set `ORBITDESK_OPERATOR_TOKEN` (24+ random characters recommended) before starting Compose. The browser then asks for that token; it keeps it only in memory and sends it in `X-OrbitDesk-Token`, never in a URL. Health and recorded question labels remain public; ticket, source, review, and model endpoints require the token. This is a **shared operator secret**, not per-user accounts or a substitute for HTTPS and a real identity provider.
+
+For a separate PostgreSQL installation, set `ORBITDESK_DATABASE_URL=postgresql+psycopg://...`, run `alembic upgrade head`, then start the API. In `ORBITDESK_ENV=production`, startup requires a PostgreSQL URL, `OPENROUTER_API_KEY`, `ORBITDESK_ALLOWED_ORIGINS`, a 24+ character operator token, and a positive `ORBITDESK_RETENTION_DAYS`; it rejects recorded demo mode. Put HTTPS and rate limiting in front before public exposure.
+
+Retention is deliberately not automatic. The command previews reviewed tickets older than the policy; `--apply` deletes them and their decisions, citations, and reviews. Pending tickets are never selected. Back up the database and schedule the command yourself only after reviewing its dry-run count:
 
 ```bash
-python -m pip install -e '.[semantic]'
-export ORBITDESK_RETRIEVAL_MODE=semantic
-orbitdesk-api
+ORBITDESK_RETENTION_DAYS=30 .venv/bin/orbitdesk-retention
+ORBITDESK_RETENTION_DAYS=30 .venv/bin/orbitdesk-retention --apply
 ```
 
-The CLI retains `--retrieval` for engineering experiments and benchmark
-comparisons.
+See [.env.example](.env.example) for timeouts, CORS, retrieval, and other configuration. Do not commit keys or real customer data.
 
-## Evaluation and tests
+## Quality evaluation and actual results
 
-`retrieval_eval.json` is a labeled synthetic evaluation set for the checked-in
-OrbitDesk corpus. It reports HitRate@K, mean reciprocal rank, and per-query
-rankings.
+`answer_eval.json` fixes 30 questions spanning supported facts, ambiguous requests, missing policy, out-of-scope requests, historical cases, citation checks, and escalation. Of these, 23 carry an expected source for retrieval scoring; seven are intentionally source-free. Retrieval metrics are HitRate@K and MRR. Answer checks use classification/action, required facts, reason codes, human-review flags, required citations, exact excerpt verification, and selected forbidden terms. “Grounded” and “unsupported” are **citation/keyword proxies**, not semantic entailment measurements or human judgments.
+
+Measured from actual runs on the checked-in dataset:
+
+| Experiment | Retrieval cases | Hit@K | MRR | Saved answers evaluated | Answer checks passed |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| [keyword-k1](evaluation_results/keyword-k1.json) | 23 | 6/23 (26.1%) | 0.261 | 5/30 | 5/5 |
+| [keyword-k3](evaluation_results/keyword-k3.json) | 23 | 22/23 (95.7%) | 0.558 | 5/30 | 5/5 |
+| [keyword-k4](evaluation_results/keyword-k4.json) | 23 | 22/23 (95.7%) | 0.558 | 5/30 | 5/5 |
+| [keyword-k4-v2](evaluation_results/keyword-k4-v2.json) | 23 | 23/23 (100%) | 0.623 | 5/30 | 5/5 |
+| [live-keyword-v2](evaluation_results/live-keyword-v2.json) | 23 | 23/23 (100%) | 0.623 | 30/30 | 12/30 |
+
+The five recorded outputs include **two answerable questions and one expected escalation**; those small-sample ratios are not evidence of broad model quality. The live run used `z-ai/glm-4.5-air` and a 768-token output cap. It produced 30 valid responses: **7/19** answerable fact checks passed, **9/9** answered responses passed the citation-grounded proxy, and **0/9** triggered the unsupported-answer proxy. Escalation precision was **2/3** and recall **2/6**. Eleven responses safely failed citation verification; they did not fabricate an answer, but they still failed the intended task. Manual inspection found repeated verification failures on supported questions (for example Q-002 and Q-004), an unnecessary escalation on Q-019, and an insufficient-evidence question (Q-025) routed as an answerable refusal instead of escalation. The “grounded” proxy only scores the nine responses that actually answered and cannot establish semantic entailment.
+
+The v2 keyword scorer rewards coverage of the whole query, moving the Viewer-download policy source (Q-008) into the top four. The old experiment files are retained as baselines. Changing retrieval K in the recorded-output comparison does not regenerate the five answers, so those answer columns remain identical by design.
 
 ```bash
-orbitdesk-evaluate --limit 4
-python -m pytest -q
-coverage run -m pytest
-coverage report
-cd frontend
-npm test
-npm run build
+.venv/bin/orbitdesk-experiment --experiment keyword-k4-v2 --retrieval keyword --top-k 4
+.venv/bin/orbitdesk-experiment --compare evaluation_results/keyword-k4.json evaluation_results/keyword-k4-v2.json
+.venv/bin/orbitdesk-evaluate-answers --labels answer_eval.json --outputs sample_outputs.json
 ```
 
-The checked-in benchmark contains 14 labeled queries across product guidance
-and incident-resolution cases. Coverage is configured to fail below 80% for
-the core modules.
+To generate and score all 30 questions against OpenRouter (provider key and credits required), run:
 
-## Reliability boundaries
+```bash
+OPENROUTER_API_KEY='your-key' .venv/bin/orbitdesk-experiment --experiment another-live-run --retrieval keyword --top-k 4 --live
+```
 
-- OpenRouter attempts: maximum 3 by default, hard maximum 5.
-- Workflow generation retries: maximum 1.
-- Per-attempt network timeout: 20 seconds by default.
-- OpenRouter call deadline: 45 seconds by default.
-- End-to-end CLI deadline: 60 seconds by default.
-- LLM input: 16,000 characters; output: 256 tokens by default.
-- Response body: maximum 1 MiB.
-- Trace events never store questions, prompts, authorization headers, or keys.
-- Generated citations must name retrieved sources and quote exact evidence.
+The live runner saves each output incrementally, recording per-case failures rather than inventing answers, then writes a versioned JSON report. It enforces the workflow’s fixed K=4. For semantic retrieval, install `.[semantic]` first. Compare only reports with the same dataset hash. Review failures and generated outputs manually before citing live quality claims.
 
-All configurable limits are documented in `.env.example`.
+## Tests and reliability
 
-## Repository contents
+```bash
+.venv/bin/pytest -q
+cd frontend && npm test && npm run build
+```
 
-- `src/orbitdesk_support_agent/`: workflow, retrieval, model client, tracing,
-  evaluation, and FastAPI boundary
-- `frontend/`: React/Vite product workspace and component tests
-- `tokens.css`: shared Hallmark design tokens
-- `knowledge_base/`: synthetic OrbitDesk product documentation
-- `resolved_cases.json`: synthetic historical support cases
-- `retrieval_eval.json`: labeled synthetic retrieval benchmark
-- `sample_questions.json`: example workflow questions
-- `tests/`: unit, workflow, retry, timeout, trace, and evaluation tests
-- `docs/`: workflow diagram assets
+OpenRouter requests have configurable per-attempt and total deadlines, bounded retries, input/output limits, and a response-size cap. The graph checks exact citation excerpts and rejects superseded evidence; provider or verification failure produces a safe failure, not an invented fallback. Traces omit prompts, questions, and credentials. Tests cover routing, missing evidence, malformed citations, provider failures, persistence, review conflicts, experiment math, and API behavior.
 
-Knowledge-base documents are the primary source of truth. Resolved cases are
-secondary evidence, and superseded cases are never returned as current
-guidance.
-
-## License
-
-This project is licensed under the [MIT License](LICENSE).
+For a short product demo and known limitations, see [the portfolio walkthrough](docs/portfolio-walkthrough.md). The project is MIT licensed.

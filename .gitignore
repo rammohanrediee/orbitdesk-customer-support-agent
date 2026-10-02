@@ -25,6 +25,7 @@ dist/
 *.egg-info/
 frontend/node_modules/
 frontend/dist/
+.playwright-cli/
 
 # Local environment variables and secrets
 .env
@@ -50,6 +51,9 @@ temp/
 # Generated runtime artifacts
 artifacts/
 runtime_outputs/
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
 
 # Editors and notebooks
 .idea/

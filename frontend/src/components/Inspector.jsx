@@ -1,7 +1,7 @@
-import { Braces, Copy, FileSearch, Gauge, Workflow } from "lucide-react";
+import { Copy, FileSearch, Gauge, Workflow } from "lucide-react";
 import { useEffect, useState } from "react";
 
-export default function Inspector({ result }) {
+export default function Inspector({ result, defaultModel }) {
   const [tab, setTab] = useState("request");
   const [copied, setCopied] = useState(false);
   const traceId = result?.trace?.trace_id;
@@ -26,11 +26,7 @@ export default function Inspector({ result }) {
   return (
     <aside className="inspector" aria-label="Request inspector">
       <div className="inspector__header">
-        <div>
-          <p>Inspector</p>
-          <h2>Request detail</h2>
-        </div>
-        <Braces aria-hidden="true" size={18} />
+        <h2>Request detail</h2>
       </div>
 
       <div className="inspector__tabs" role="tablist" aria-label="Inspector view">
@@ -72,7 +68,7 @@ export default function Inspector({ result }) {
           </dl>
           <div className="inspector__model">
             <span>Model</span>
-            <code>{result?.model ?? "z-ai/glm-4.5-air"}</code>
+            <code>{result?.model ?? defaultModel ?? "z-ai/glm-4.5-air"}</code>
           </div>
         </div>
       ) : (

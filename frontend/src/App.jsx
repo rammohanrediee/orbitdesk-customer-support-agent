@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import {
-  Activity,
   CircleDot,
   Command,
   PanelLeftClose,
@@ -8,7 +7,7 @@ import {
   Search,
   SquareArrowOutUpRight,
 } from "lucide-react";
-import { askSupport, getHealth } from "./api.js";
+import { createTicket, getDemoQuestions, getHealth, listTickets, reviewTicket, setOperatorToken } from "./api.js";
 import AnswerPanel from "./components/AnswerPanel.jsx";
 import CommandPalette from "./components/CommandPalette.jsx";
 import HistoryRail from "./components/HistoryRail.jsx";
@@ -17,21 +16,69 @@ import QuestionComposer from "./components/QuestionComposer.jsx";
 
 export default function App() {
   const [question, setQuestion] = useState("");
-  const [history, setHistory] = useState([]);
-  const [historyOpen, setHistoryOpen] = useState(true);
+  const [tickets, setTickets] = useState([]);
+  const [activeTicket, setActiveTicket] = useState(null);
+  const [historyOpen, setHistoryOpen] = useState(() =>
+    typeof window.matchMedia === "function"
+      ? window.matchMedia("(min-width: 60rem)").matches
+      : true);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
-  const [result, setResult] = useState(null);
+  const [historyError, setHistoryError] = useState("");
   const [health, setHealth] = useState(null);
+  const [healthChecked, setHealthChecked] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
+  const [reviewError, setReviewError] = useState("");
+  const [reviewBusy, setReviewBusy] = useState(false);
+  const [demoQuestions, setDemoQuestions] = useState([]);
+  const [tokenDraft, setTokenDraft] = useState("");
+  const [authenticated, setAuthenticated] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [authBusy, setAuthBusy] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
     getHealth({ signal: controller.signal })
-      .then(setHealth)
-      .catch(() => setHealth(null));
+      .then((result) => {
+        setHealth(result);
+        if (!result.auth_required) {
+          listTickets({ signal: controller.signal })
+            .then(setTickets)
+            .catch(() => setHistoryError("Saved tickets could not be loaded."));
+        }
+      })
+      .catch(() => setHealth(null))
+      .finally(() => {
+        if (!controller.signal.aborted) setHealthChecked(true);
+      });
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    if (!health?.demo_mode) return undefined;
+    const controller = new AbortController();
+    getDemoQuestions({ signal: controller.signal })
+      .then(setDemoQuestions)
+      .catch(() => setDemoQuestions([]));
+    return () => controller.abort();
+  }, [health?.demo_mode]);
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return undefined;
+    const desktop = window.matchMedia("(min-width: 60rem)");
+    const handleResize = () => setHistoryOpen(desktop.matches);
+    desktop.addEventListener("change", handleResize);
+    return () => desktop.removeEventListener("change", handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (!historyOpen) return undefined;
+    const handleEscape = (event) => {
+      if (event.key === "Escape") setHistoryOpen(false);
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [historyOpen]);
 
   useEffect(() => {
     function handleShortcut(event) {
@@ -44,20 +91,30 @@ export default function App() {
     return () => window.removeEventListener("keydown", handleShortcut);
   }, []);
 
-  function chooseQuestion(nextQuestion) {
-    setQuestion(nextQuestion);
-    setStatus("idle");
+  function chooseTicket(ticket) {
+    setActiveTicket(ticket);
+    setQuestion(ticket.question);
+    setStatus("success");
     setError("");
+    setReviewError("");
     setCommandOpen(false);
-    window.requestAnimationFrame(() => {
-      document.getElementById("support-question")?.focus();
-    });
+    if (window.matchMedia?.("(max-width: 59.99rem)")?.matches) {
+      setHistoryOpen(false);
+    }
   }
 
   function updateQuestion(nextQuestion) {
     setQuestion(nextQuestion);
+    if (activeTicket && nextQuestion !== activeTicket.question) {
+      setActiveTicket(null);
+    }
     if (status === "success" || status === "error") setStatus("idle");
     if (error) setError("");
+  }
+
+  function chooseDemoQuestion(sampleQuestion) {
+    updateQuestion(sampleQuestion);
+    document.getElementById("support-question")?.focus();
   }
 
   async function submitQuestion() {
@@ -65,12 +122,9 @@ export default function App() {
     setStatus("loading");
     setError("");
     try {
-      const nextResult = await askSupport({ question: submittedQuestion });
-      setResult(nextResult);
-      setHistory((current) => [
-        submittedQuestion,
-        ...current.filter((item) => item !== submittedQuestion),
-      ].slice(0, 20));
+      const ticket = await createTicket({ question: submittedQuestion });
+      setActiveTicket(ticket);
+      setTickets((current) => [ticket, ...current].slice(0, 50));
       setStatus("success");
     } catch (requestError) {
       setStatus("error");
@@ -78,7 +132,67 @@ export default function App() {
     }
   }
 
+  async function decideReview(decision) {
+    if (!activeTicket || reviewBusy) return;
+    setReviewBusy(true);
+    setReviewError("");
+    try {
+      const reviewed = await reviewTicket(activeTicket.id, decision);
+      setActiveTicket(reviewed);
+      setTickets((current) => current.map((ticket) => (
+        ticket.id === reviewed.id ? reviewed : ticket
+      )));
+    } catch (reviewRequestError) {
+      setReviewError(reviewRequestError.message);
+    } finally {
+      setReviewBusy(false);
+    }
+  }
+
+  async function unlockWorkspace(event) {
+    event.preventDefault();
+    setAuthBusy(true);
+    setAuthError("");
+    setOperatorToken(tokenDraft);
+    try {
+      setTickets(await listTickets());
+      setAuthenticated(true);
+      setTokenDraft("");
+    } catch (requestError) {
+      setOperatorToken("");
+      setAuthError(requestError.message);
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  if (health?.auth_required && !authenticated) {
+    return (
+      <div className="app-shell access-shell">
+        <main className="access-panel">
+          <span className="wordmark"><span className="wordmark__mark" aria-hidden="true">O</span> OrbitDesk</span>
+          <h1>Operator access</h1>
+          <p>Enter the demo operator token to view tickets and use the support workflow. It stays in this browser tab’s memory.</p>
+          <form onSubmit={unlockWorkspace}>
+            <label htmlFor="operator-token">Operator access token</label>
+            <input id="operator-token" type="password" autoComplete="off" value={tokenDraft}
+              onChange={(event) => setTokenDraft(event.target.value)} required />
+            <button type="submit" disabled={authBusy}>{authBusy ? "Checking…" : "Unlock workspace"}</button>
+          </form>
+          {authError && <p role="alert">{authError}</p>}
+        </main>
+      </div>
+    );
+  }
+
   const serviceReady = health?.status === "ready";
+  const serviceNotice = !healthChecked || serviceReady
+    ? null
+    : !health
+      ? "OrbitDesk cannot reach the API. Start the API server, then reload this page."
+      : health.status === "unavailable"
+        ? "Ticket storage is unavailable. Check the API server logs before asking a question."
+        : "The API needs configuration. Check the OpenRouter key and retrieval mode before asking a question.";
 
   return (
     <div className="app-shell">
@@ -86,7 +200,7 @@ export default function App() {
         <div className="product-nav__inner">
           <div className="product-nav__brand">
             <button
-              className="icon-button"
+              className="icon-button history-toggle"
               type="button"
               aria-controls="request-history"
               aria-expanded={historyOpen}
@@ -101,6 +215,7 @@ export default function App() {
               {historyOpen
                 ? <PanelLeftClose aria-hidden="true" size={18} />
                 : <PanelLeftOpen aria-hidden="true" size={18} />}
+              <span className="history-toggle__label">History</span>
             </button>
             <a className="wordmark" href="#workspace" aria-label="OrbitDesk home">
               <span className="wordmark__mark" aria-hidden="true">O</span>
@@ -125,26 +240,22 @@ export default function App() {
             <div
               className="service-state"
               data-ready={serviceReady}
-              title={
-                serviceReady
-                  ? "OpenRouter is configured"
-                  : "OpenRouter configuration is required"
-              }
             >
               <CircleDot aria-hidden="true" size={15} />
-              <span>{serviceReady ? "API ready" : "Check API"}</span>
+              <span>{!healthChecked ? "Checking API" : serviceReady ? (health.demo_mode ? "Demo ready" : "API ready") : "API issue"}</span>
             </div>
             <a
               className="icon-button"
-              href="/api/docs"
+              href="/docs/"
               target="_blank"
               rel="noreferrer"
-              aria-label="Open API documentation"
-              title="Open API documentation"
+              aria-label="Open OrbitDesk documentation"
+              title="Open OrbitDesk documentation"
             >
               <SquareArrowOutUpRight aria-hidden="true" size={18} />
             </a>
           </div>
+
         </div>
       </header>
 
@@ -153,23 +264,31 @@ export default function App() {
         id="workspace"
         data-history-open={historyOpen}
       >
-        {historyOpen && (
-          <HistoryRail questions={history} onChoose={chooseQuestion} />
-        )}
+        {historyOpen && <>
+          <button
+            className="history-backdrop"
+            type="button"
+            aria-label="Close request history"
+            onClick={() => setHistoryOpen(false)}
+          />
+          <HistoryRail tickets={tickets} error={historyError} onChoose={chooseTicket} />
+        </>}
 
         <main className="support-workspace">
           <div className="support-workspace__intro">
             <div>
-              <p className="workspace-context">
-                <Activity aria-hidden="true" size={15} /> Grounded support
-              </p>
               <h1>Find the answer. Keep the evidence.</h1>
             </div>
             <p>
-              OrbitDesk retrieves the local product record, asks the configured
-              model, and verifies each cited passage before returning an answer.
+              OrbitDesk retrieves the local product record, generates a support
+              draft, and verifies each cited passage before returning it for review.
             </p>
           </div>
+
+          {serviceNotice && <p className="service-notice" role="status">
+            <CircleDot aria-hidden="true" size={18} />
+            <span>{serviceNotice}</span>
+          </p>}
 
           <QuestionComposer
             question={question}
@@ -178,10 +297,35 @@ export default function App() {
             onSubmit={submitQuestion}
           />
 
-          <AnswerPanel result={result} status={status} error={error} />
+          {health?.demo_mode && (
+            <section className="demo-questions" aria-label="Recorded demo questions">
+              <h2>Try a recorded question</h2>
+              <p>These questions use saved demo answers.</p>
+              <ol>
+                {demoQuestions.map((sample, index) => (
+                  <li key={sample.question_id}>
+                    <p>{sample.question}</p>
+                    <button type="button" onClick={() => chooseDemoQuestion(sample.question)}>
+                      Use sample {index + 1}
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+
+          <AnswerPanel
+            result={activeTicket?.generated_result ?? null}
+            ticket={activeTicket}
+            status={status}
+            error={error}
+            reviewError={reviewError}
+            reviewBusy={reviewBusy}
+            onReview={decideReview}
+          />
         </main>
 
-        <Inspector result={result} />
+        <Inspector result={activeTicket?.generated_result ?? null} defaultModel={health?.model} />
       </div>
 
       <footer className="status-footer">
@@ -197,9 +341,9 @@ export default function App() {
 
       <CommandPalette
         open={commandOpen}
-        questions={history}
+        tickets={tickets}
         onClose={() => setCommandOpen(false)}
-        onChoose={chooseQuestion}
+        onChoose={chooseTicket}
       />
     </div>
   );

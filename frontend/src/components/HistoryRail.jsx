@@ -1,6 +1,6 @@
-import { BookOpenText, Clock3, MessageSquareText } from "lucide-react";
+import { BookOpenText } from "lucide-react";
 
-export default function HistoryRail({ questions, onChoose }) {
+export default function HistoryRail({ tickets, error, onChoose }) {
   return (
     <aside
       className="history-rail"
@@ -8,24 +8,21 @@ export default function HistoryRail({ questions, onChoose }) {
       aria-label="Request history"
     >
       <div className="history-rail__heading">
-        <div>
-          <p>Workspace</p>
-          <h2>Request history</h2>
-        </div>
-        <MessageSquareText aria-hidden="true" size={18} />
+        <h2>Request history</h2>
       </div>
 
       <nav aria-label="Previous support requests">
-        <p className="rail-label"><Clock3 aria-hidden="true" size={14} /> Recent</p>
-        {questions.length === 0 && (
+        {error && <p className="history-empty" role="alert">{error}</p>}
+        {tickets.length === 0 && (
           <p className="history-empty">No requests yet</p>
         )}
         <ul className="history-list">
-          {questions.map((question) => (
-            <li key={question}>
-              <button type="button" onClick={() => onChoose(question)}>
-                {question}
+          {tickets.map((ticket) => (
+            <li key={ticket.id}>
+              <button type="button" onClick={() => onChoose(ticket)}>
+                {ticket.question}
               </button>
+              <small>{ticket.status}</small>
             </li>
           ))}
         </ul>

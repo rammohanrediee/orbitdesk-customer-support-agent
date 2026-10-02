@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="OrbitDesk product documentation for credentials, permissions, exports, connections, and troubleshooting." />
+    <title>OrbitDesk Docs · Product guide</title>
+    <link rel="stylesheet" href="../../tokens.css" />
+    <link rel="stylesheet" href="../src/docs.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#content">Skip to documentation</a>
+    <header class="docs-header">
+      <div class="docs-header__inner">
+        <a class="docs-brand" href="../index.html#workspace" aria-label="OrbitDesk workspace">
+          <span class="docs-brand__mark" aria-hidden="true">O</span>
+          <span>OrbitDesk <span class="docs-brand__suffix">Docs</span></span>
+        </a>
+        <a class="docs-header__action" href="../index.html#workspace">Ask OrbitDesk <span aria-hidden="true">↗</span></a>
+      </div>
+    </header>
+
+    <div class="docs-layout">
+      <nav class="docs-nav" aria-label="Documentation contents">
+        <p class="docs-nav__heading">Contents</p>
+        <a href="#credentials">Credentials</a>
+        <a href="#permissions">Permissions</a>
+        <a href="#exports">Exports</a>
+        <a href="#connections">Connections</a>
+        <a href="#destinations">Delivery</a>
+        <a href="#audit">Audit logs</a>
+        <a href="#diagnostics">Troubleshooting</a>
+      </nav>
+
+      <main id="content" class="docs-content">
+        <header class="docs-intro">
+          <h1>OrbitDesk documentation</h1>
+          <p>OrbitDesk workspaces contain dashboards, data connections, export schedules, members, and API credentials. Use this guide to check a product rule or troubleshoot a common failure. For a specific question, <a href="../index.html#workspace">ask OrbitDesk</a> for an answer grounded in the knowledge base.</p>
+        </header>
+
+        <section id="credentials" data-source="KB-005">
+          <h2>API credentials</h2>
+          <p>Workspace API credentials are for server-to-server integrations. Only an Owner or Admin can create or revoke one. An Analyst or Viewer cannot create a credential.</p>
+          <h3>Create a credential</h3>
+          <ol>
+            <li>Open <strong>Settings → Developer → API credentials</strong> as an Owner or Admin.</li>
+            <li>Give the credential a display name and select only the scopes the integration needs.</li>
+            <li>Store the secret securely when it is shown. OrbitDesk displays it only once.</li>
+          </ol>
+          <p>A credential with <code>dashboards:read</code> cannot create or edit dashboards. If a secret is lost, revoke the credential and create a replacement; support cannot reveal it. If exposure is suspected, revoke it immediately.</p>
+          <p>Legacy personal tokens from <strong>Profile → Personal token</strong> were removed in version 4.0. Use a workspace credential instead.</p>
+        </section>
+
+        <section id="permissions" data-source="KB-002">
+          <h2>Roles and permissions</h2>
+          <p>Roles apply within a single workspace. They do not grant the same access in every workspace on an account.</p>
+          <dl class="role-list">
+            <div><dt>Owner</dt><dd>Manages billing, ownership, deletion, members, workspace credentials, and all Admin and Analyst actions. Each workspace must have at least one Owner.</dd></div>
+            <div><dt>Admin</dt><dd>Manages members other than Owners, workspace settings, credentials, and connections. Cannot manage billing or transfer ownership.</dd></div>
+            <div><dt>Analyst</dt><dd>Creates and edits dashboards, runs manual exports, and creates schedules. Cannot create credentials or change workspace settings.</dd></div>
+            <div><dt>Viewer</dt><dd>Reads shared dashboards. Can download an export only when the dashboard owner enabled downloads. Cannot create schedules or credentials.</dd></div>
+          </dl>
+          <p>For <code>permission_denied</code>, check the role in the affected workspace and the attempted action. Credential creation needs an Owner or Admin—not necessarily an Owner.</p>
+        </section>
+
+        <section id="exports" data-source="KB-003 KB-004">
+          <h2>Scheduled exports</h2>
+          <p>Analysts, Admins, and Owners can schedule PDF or CSV exports. A run checks the schedule state, dashboard access, required refreshes, rendering, and then delivery. A schedule may be <strong>Active</strong>, <strong>Paused</strong>, <strong>Needs attention</strong>, or <strong>Running</strong>.</p>
+          <h3>After a timezone change</h3>
+          <p>Changing the workspace timezone does not update existing recurring schedules automatically. Open each affected schedule, review its next-run time, and select <strong>Save schedule</strong>. The <code>Timezone update pending</code> notice should disappear. This changes future runs; it does not recover an already missed export. One-time exports keep their absolute timestamp.</p>
+          <h3>When an export is missing</h3>
+          <ol>
+            <li>Check the schedule state and next-run time.</li>
+            <li>Open <strong>Schedule → Run history</strong> and record the latest status and error code.</li>
+            <li>Confirm the dashboard still exists and the schedule owner can open it.</li>
+            <li>Check required connections and the delivery destination.</li>
+          </ol>
+          <dl class="error-list">
+            <div><dt><code>source_refresh_timeout</code></dt><dd>A required refresh exceeded 15 minutes. The export is not retried automatically.</dd></div>
+            <div><dt><code>destination_unverified</code></dt><dd>Delivery is blocked until the destination is verified.</dd></div>
+            <div><dt><code>owner_access_revoked</code></dt><dd>The schedule owner lost dashboard access.</dd></div>
+            <div><dt><code>render_failed</code></dt><dd>Rendering failed after the data checks. Escalate after two consecutive failures for the same dashboard.</dd></div>
+          </dl>
+          <p>After correcting the cause, use <strong>Run now</strong>. A manual run does not change the recurring schedule’s next-run time.</p>
+        </section>
+
+        <section id="connections" data-source="KB-006">
+          <h2>Connections and refreshes</h2>
+          <p>Owners and Admins manage connections. Analysts can view non-secret settings and start a manual refresh when a connection allows it. A connection may be Active, Refreshing, Reauthorization required, Disabled, or Error.</p>
+          <p>Only one refresh can run for a connection at a time; a second request returns <code>refresh_already_running</code>. Exports wait up to 15 minutes for required refreshes. A later successful refresh does not change a run that already ended with <code>source_refresh_timeout</code>.</p>
+          <p>For <code>reauthorization_required</code>, an Owner or Admin must reconnect the source. For two repeated <code>connector_internal_error</code> failures, escalate with the connection ID, refresh job IDs, and timestamps.</p>
+        </section>
+
+        <section id="destinations" data-source="KB-007">
+          <h2>Delivery destinations</h2>
+          <p>Exports can go to email or a configured cloud-storage destination. The first export to a new external email domain needs Owner or Admin verification. Verification links expire after 24 hours and can be resent from <strong>Settings → Export destinations</strong>.</p>
+          <p>A schedule can include up to 20 email recipients. OrbitDesk records mail-server acceptance, not whether a recipient opened the message. If a message was accepted but cannot be found, check spam filtering and allow-list <code>exports@orbitdesk.example</code>.</p>
+          <p>An Owner or Admin must reconnect a storage destination in <code>reauthorization_required</code> state. The exact historical export file cannot be resent after its seven-day retention window; a new run may contain newer data.</p>
+        </section>
+
+        <section id="audit" data-source="KB-009">
+          <h2>Audit logs</h2>
+          <p>Owners and Admins can open <strong>Settings → Audit log</strong>. Logs cover member and role changes, workspace settings, connection changes, export schedules, and credential creation or revocation. Analysts and Viewers cannot access this page.</p>
+          <p>Events are stored in UTC and displayed in the viewer’s selected locale. They remain available for 90 days. Changing the workspace timezone does not rewrite older events. When comparing an event with an export run, include the displayed timezone or convert both times to UTC.</p>
+        </section>
+
+        <section id="diagnostics" data-source="KB-008">
+          <h2>Safe troubleshooting</h2>
+          <p>Before escalating, collect the workspace ID, affected object ID, exact error code, timestamps with timezone, relevant run or refresh IDs, reproduction steps, and checks already tried.</p>
+          <p><strong>Do not share</strong> passwords, API secrets, OAuth tokens, session cookies, payment-card numbers, or full exported datasets. Crop screenshots to remove unrelated customer information.</p>
+          <p>Escalate repeated documented failures, suspected credential exposure, ownership disputes, billing or legal requests, and reproducible errors not covered here. The support assistant can explain documented steps but cannot change an account, execute an export, issue a refund, or promise a resolution time.</p>
+        </section>
+      </main>
+    </div>
+
+    <footer class="docs-footer">
+      <div><strong>OrbitDesk</strong><span>Product guidance, with a direct path back to support.</span></div>
+      <a href="../index.html#workspace">Ask a question <span aria-hidden="true">↗</span></a>
+    </footer>
+    <script type="module" src="../src/docs-entry.js"></script>
+  </body>
+</html>

@@ -13,11 +13,11 @@
     <a class="skip-link" href="#content">Skip to documentation</a>
     <header class="docs-header">
       <div class="docs-header__inner">
-        <a class="docs-brand" href="../index.html#workspace" aria-label="OrbitDesk workspace">
+        <a class="docs-brand" href="../index.html#workspace" data-workspace-link aria-label="OrbitDesk workspace">
           <span class="docs-brand__mark" aria-hidden="true">O</span>
           <span>OrbitDesk <span class="docs-brand__suffix">Docs</span></span>
         </a>
-        <a class="docs-header__action" href="../index.html#workspace">Ask OrbitDesk <span aria-hidden="true">↗</span></a>
+        <a class="docs-header__action" href="../index.html#workspace" data-workspace-link>Ask OrbitDesk <span aria-hidden="true">↗</span></a>
       </div>
     </header>
 
@@ -36,7 +36,7 @@
       <main id="content" class="docs-content">
         <header class="docs-intro">
           <h1>OrbitDesk documentation</h1>
-          <p>OrbitDesk workspaces contain dashboards, data connections, export schedules, members, and API credentials. Use this guide to check a product rule or troubleshoot a common failure. For a specific question, <a href="../index.html#workspace">ask OrbitDesk</a> for an answer grounded in the knowledge base.</p>
+          <p>OrbitDesk workspaces contain dashboards, data connections, export schedules, members, and API credentials. Use this guide to check a product rule or troubleshoot a common failure. For a specific question, <a href="../index.html#workspace" data-workspace-link>ask OrbitDesk</a> for an answer grounded in the knowledge base.</p>
         </header>
 
         <section id="credentials" data-source="KB-005">
@@ -116,8 +116,15 @@
 
     <footer class="docs-footer">
       <div><strong>OrbitDesk</strong><span>Product guidance, with a direct path back to support.</span></div>
-      <a href="../index.html#workspace">Ask a question <span aria-hidden="true">↗</span></a>
+      <a href="../index.html#workspace" data-workspace-link>Ask a question <span aria-hidden="true">↗</span></a>
     </footer>
+    <script>
+      if (window.location.protocol === "file:") {
+        document.querySelectorAll("[data-workspace-link]").forEach((link) => {
+          link.href = "http://127.0.0.1:5174/#workspace";
+        });
+      }
+    </script>
     <script type="module" src="../src/docs-entry.js"></script>
   </body>
 </html>

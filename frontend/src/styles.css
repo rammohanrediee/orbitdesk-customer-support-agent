@@ -293,6 +293,10 @@ kbd {
   display: none;
 }
 
+.history-rail__close {
+  display: none;
+}
+
 .workspace-grid {
   min-width: 0;
   display: grid;
@@ -320,13 +324,68 @@ kbd {
   overflow-y: auto;
 }
 
+.history-resize {
+  position: fixed;
+  inset-block-start: var(--banner-height);
+  inset-inline-start: calc(var(--history-width) - 14px);
+  z-index: var(--z-sticky);
+  width: 28px;
+  height: calc(100dvh - var(--banner-height));
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+.history-resize::after {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  width: 4px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  background: var(--color-rule-2);
+  content: "";
+  transform: translate(-50%, -50%);
+}
+
+.history-resize:hover::after,
+.history-resize:focus-visible::after {
+  background: var(--color-accent);
+}
+
 @media (max-width: 59.99rem) {
-  .history-toggle {
-    padding-inline: var(--space-sm);
+  .product-nav__inner {
+    grid-template-columns: minmax(0, 1fr) auto auto;
   }
 
-  .history-toggle__label {
-    display: inline;
+  .history-toggle {
+    width: 44px;
+    padding-inline: 0;
+  }
+
+  .search-trigger {
+    width: 44px;
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .search-trigger > span:first-of-type,
+  .search-trigger__shortcut {
+    display: none;
+  }
+
+  .service-state span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .history-rail__close {
+    display: inline-flex;
   }
 
   .history-backdrop {
@@ -338,26 +397,19 @@ kbd {
     border: 0;
     background: var(--color-overlay);
     cursor: pointer;
+    touch-action: none;
   }
 
   .history-rail {
     position: fixed;
-    inset: var(--banner-height) 0 auto;
+    inset: var(--banner-height) auto 0 0;
     z-index: var(--z-sticky);
-    max-height: min(70dvh, 32rem);
-    box-shadow: 0 var(--space-xs) var(--space-lg) var(--color-shadow);
-  }
-}
-
-@media (max-width: 39.99rem) {
-  .search-trigger {
-    width: 44px;
-    justify-content: center;
-    padding-inline: 0;
-  }
-
-  .search-trigger > span:first-of-type {
-    display: none;
+    width: var(--history-width);
+    max-height: calc(100dvh - var(--banner-height));
+    border-inline-end: var(--rule-thin) solid var(--color-rule);
+    border-block-end: 0;
+    box-shadow: var(--space-xs) 0 var(--space-lg) var(--color-shadow);
+    overscroll-behavior: contain;
   }
 }
 
@@ -365,6 +417,13 @@ kbd {
 .inspector__header {
   padding-block-end: var(--space-lg);
   border-block-end: var(--rule-thin) solid var(--color-rule);
+}
+
+.history-rail__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
 }
 
 .inspector__model span,
@@ -1171,7 +1230,6 @@ input:disabled {
 }
 
 @media (min-width: 40rem) {
-  .search-trigger__shortcut,
   .composer__shortcut,
   .service-state,
   .command-dialog__footer {
@@ -1199,6 +1257,10 @@ input:disabled {
 }
 
 @media (min-width: 60rem) {
+  .search-trigger__shortcut {
+    display: flex;
+  }
+
   .workspace-grid {
     grid-template-columns: minmax(0, 1fr) 21rem;
     grid-template-areas: "main inspector";
@@ -1210,8 +1272,12 @@ input:disabled {
   }
 
   .workspace-grid[data-history-open="true"] {
-    grid-template-columns: 14rem minmax(0, 1fr) 21rem;
+    grid-template-columns: var(--history-width) minmax(0, 1fr) 21rem;
     grid-template-areas: "history main inspector";
+  }
+
+  .history-resize {
+    height: calc(100dvh - var(--banner-height) - var(--status-height));
   }
 
   .support-workspace,
@@ -1238,7 +1304,7 @@ input:disabled {
   }
 
   .workspace-grid[data-history-open="true"] {
-    grid-template-columns: 16rem minmax(0, 1fr) 24rem;
+    grid-template-columns: var(--history-width) minmax(0, 1fr) 24rem;
   }
 
   .support-workspace {
@@ -1247,13 +1313,15 @@ input:disabled {
 }
 
 @media (max-width: 30rem) {
-  .wordmark > span:last-child {
-    display: none;
-  }
-
   .product-nav__inner {
     gap: var(--space-xs);
     padding-inline: var(--space-sm);
+  }
+}
+
+@media (max-width: 22rem) {
+  .wordmark > span:last-child {
+    display: none;
   }
 }
 

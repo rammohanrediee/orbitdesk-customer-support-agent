@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App.jsx";
@@ -17,6 +17,7 @@ vi.mock("./api.js", () => ({
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  window.localStorage.removeItem("orbitdesk.historyWidth");
 });
 
 const groundedResult = {
@@ -78,8 +79,10 @@ describe("OrbitDesk workspace", () => {
   it("keeps history before the workflow in the document order when open", async () => {
     render(<App />);
 
-    expect(screen.getByRole("main").previousElementSibling)
-      .toBe(screen.getByRole("complementary", { name: "Request history" }));
+    const main = screen.getByRole("main");
+    const history = screen.getByRole("complementary", { name: "Request history" });
+    const siblings = [...main.parentElement.children];
+    expect(siblings.indexOf(history)).toBeLessThan(siblings.indexOf(main));
   });
 
   it("starts with mobile history closed and opens it on request", async () => {
@@ -96,9 +99,30 @@ describe("OrbitDesk workspace", () => {
     await user.click(screen.getByRole("button", { name: "Show request history" }));
     expect(screen.getByRole("complementary", { name: "Request history" }))
       .toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Close request history" }));
+    expect(screen.queryByRole("complementary", { name: "Request history" }))
+      .not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Show request history" }));
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("complementary", { name: "Request history" }))
       .not.toBeInTheDocument();
+  });
+
+  it("resizes history by dragging or keyboard and remembers the width", async () => {
+    render(<App />);
+    const separator = screen.getByRole("separator", { name: "Resize request history" });
+    expect(separator).toHaveAttribute("aria-valuenow", "224");
+
+    fireEvent.pointerDown(separator, { pointerId: 1, pointerType: "mouse", button: 0, clientX: 224 });
+    fireEvent.pointerMove(separator, { pointerId: 1, clientX: 280 });
+    fireEvent.pointerUp(separator, { pointerId: 1 });
+    expect(separator).toHaveAttribute("aria-valuenow", "280");
+    await waitFor(() => expect(window.localStorage.getItem("orbitdesk.historyWidth")).toBe("280"));
+
+    fireEvent.keyDown(separator, { key: "ArrowLeft" });
+    expect(separator).toHaveAttribute("aria-valuenow", "264");
+    fireEvent.keyDown(separator, { key: "End" });
+    expect(separator).toHaveAttribute("aria-valuenow", "368");
   });
 
   it("explains API configuration problems without a hover tooltip", async () => {

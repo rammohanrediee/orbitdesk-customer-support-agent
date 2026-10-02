@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   CircleDot,
   Command,
@@ -14,6 +14,25 @@ import HistoryRail from "./components/HistoryRail.jsx";
 import Inspector from "./components/Inspector.jsx";
 import QuestionComposer from "./components/QuestionComposer.jsx";
 
+const HISTORY_WIDTH_KEY = "orbitdesk.historyWidth";
+
+function historyWidthLimits(viewportWidth) {
+  const docked = viewportWidth >= 960;
+  const min = docked ? 192 : 200;
+  const available = docked
+    ? viewportWidth - (viewportWidth >= 1440 ? 384 : 336) - 320
+    : viewportWidth - 48;
+  return {
+    min,
+    max: Math.max(min, Math.min(480, available)),
+    initial: docked ? 224 : 320,
+  };
+}
+
+function clampHistoryWidth(width, limits) {
+  return Math.min(limits.max, Math.max(limits.min, width));
+}
+
 export default function App() {
   const [question, setQuestion] = useState("");
   const [tickets, setTickets] = useState([]);
@@ -22,6 +41,16 @@ export default function App() {
     typeof window.matchMedia === "function"
       ? window.matchMedia("(min-width: 60rem)").matches
       : true);
+  const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth);
+  const [historyWidth, setHistoryWidth] = useState(() => {
+    try {
+      const saved = Number(window.localStorage.getItem(HISTORY_WIDTH_KEY));
+      return Number.isFinite(saved) && saved >= 192 && saved <= 480 ? saved : null;
+    } catch {
+      return null;
+    }
+  });
+  const resizePointer = useRef(null);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
   const [historyError, setHistoryError] = useState("");
@@ -35,6 +64,26 @@ export default function App() {
   const [authenticated, setAuthenticated] = useState(false);
   const [authError, setAuthError] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
+  const widthLimits = historyWidthLimits(viewportWidth);
+  const displayedHistoryWidth = clampHistoryWidth(
+    historyWidth ?? widthLimits.initial,
+    widthLimits,
+  );
+
+  useEffect(() => {
+    const handleResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (historyWidth === null) return;
+    try {
+      window.localStorage.setItem(HISTORY_WIDTH_KEY, String(historyWidth));
+    } catch {
+      // The drawer remains resizable when storage is unavailable.
+    }
+  }, [historyWidth]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -101,6 +150,44 @@ export default function App() {
     if (window.matchMedia?.("(max-width: 59.99rem)")?.matches) {
       setHistoryOpen(false);
     }
+  }
+
+  function startHistoryResize(event) {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    event.preventDefault();
+    resizePointer.current = {
+      id: event.pointerId,
+      x: event.clientX,
+      width: displayedHistoryWidth,
+    };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  }
+
+  function moveHistoryResize(event) {
+    if (resizePointer.current?.id !== event.pointerId) return;
+    setHistoryWidth(clampHistoryWidth(
+      resizePointer.current.width + event.clientX - resizePointer.current.x,
+      widthLimits,
+    ));
+  }
+
+  function stopHistoryResize(event) {
+    if (resizePointer.current?.id !== event.pointerId) return;
+    resizePointer.current = null;
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }
+
+  function resizeHistoryWithKeyboard(event) {
+    let nextWidth;
+    if (event.key === "ArrowLeft") nextWidth = displayedHistoryWidth - 16;
+    if (event.key === "ArrowRight") nextWidth = displayedHistoryWidth + 16;
+    if (event.key === "Home") nextWidth = widthLimits.min;
+    if (event.key === "End") nextWidth = widthLimits.max;
+    if (nextWidth === undefined) return;
+    event.preventDefault();
+    setHistoryWidth(clampHistoryWidth(nextWidth, widthLimits));
   }
 
   function updateQuestion(nextQuestion) {
@@ -263,15 +350,39 @@ export default function App() {
         className="workspace-grid"
         id="workspace"
         data-history-open={historyOpen}
+        style={{ "--history-width": `${displayedHistoryWidth}px` }}
       >
         {historyOpen && <>
           <button
             className="history-backdrop"
             type="button"
-            aria-label="Close request history"
+            aria-label="Dismiss request history"
             onClick={() => setHistoryOpen(false)}
           />
-          <HistoryRail tickets={tickets} error={historyError} onChoose={chooseTicket} />
+          <HistoryRail
+            tickets={tickets}
+            error={historyError}
+            onChoose={chooseTicket}
+            onClose={() => setHistoryOpen(false)}
+          />
+          <div
+            className="history-resize"
+            role="separator"
+            tabIndex={0}
+            aria-label="Resize request history"
+            aria-controls="request-history"
+            aria-orientation="vertical"
+            aria-valuemin={widthLimits.min}
+            aria-valuemax={widthLimits.max}
+            aria-valuenow={displayedHistoryWidth}
+            title="Drag to resize request history; use arrow keys when focused"
+            onPointerDown={startHistoryResize}
+            onPointerMove={moveHistoryResize}
+            onPointerUp={stopHistoryResize}
+            onPointerCancel={stopHistoryResize}
+            onLostPointerCapture={() => { resizePointer.current = null; }}
+            onKeyDown={resizeHistoryWithKeyboard}
+          />
         </>}
 
         <main className="support-workspace">

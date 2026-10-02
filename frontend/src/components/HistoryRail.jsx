@@ -1,6 +1,6 @@
-import { BookOpenText } from "lucide-react";
+import { BookOpenText, X } from "lucide-react";
 
-export default function HistoryRail({ tickets, error, onChoose }) {
+export default function HistoryRail({ tickets, error, onChoose, onClose }) {
   return (
     <aside
       className="history-rail"
@@ -9,6 +9,14 @@ export default function HistoryRail({ tickets, error, onChoose }) {
     >
       <div className="history-rail__heading">
         <h2>Request history</h2>
+        <button
+          className="icon-button history-rail__close"
+          type="button"
+          aria-label="Close request history"
+          onClick={onClose}
+        >
+          <X aria-hidden="true" size={18} />
+        </button>
       </div>
 
       <nav aria-label="Previous support requests">

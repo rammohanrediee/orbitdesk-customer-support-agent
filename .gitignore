@@ -26,6 +26,7 @@ dist/
 frontend/node_modules/
 frontend/dist/
 .playwright-cli/
+.hallmark/
 
 # Local environment variables and secrets
 .env

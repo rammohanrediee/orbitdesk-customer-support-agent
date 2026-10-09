@@ -1,4 +1,3 @@
-from orbitdesk_support_agent.generator import generate_response
 from orbitdesk_support_agent.graph import build_graph
 from orbitdesk_support_agent.schemas import SourceReference, SupportResponse
 from orbitdesk_support_agent.verifier import verify_response
@@ -59,6 +58,22 @@ def test_citation_claim_must_match_the_answer():
     result = verify_response(response, evidence)
     assert result.passed is False
     assert any("claim" in issue for issue in result.issues)
+
+
+def test_answerable_contract_requires_evidence_and_no_human_flag():
+    response = SupportResponse(
+        classification="answerable",
+        answer="An unsupported answer.",
+        sources=[],
+        confidence=0.5,
+        requires_human=True,
+        reason="Unsupported.",
+    )
+
+    result = verify_response(response, [])
+
+    assert result.passed is False
+    assert len(result.issues) == 3
 
 
 def test_provider_failure_has_model_failure_reason_code():

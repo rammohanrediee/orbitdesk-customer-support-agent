@@ -1,7 +1,7 @@
 from time import perf_counter
+from typing import Any
 
 import numpy as np
-from sentence_transformers import SentenceTransformer
 
 from orbitdesk_support_agent.model_config import (
     EMBEDDING_MODEL_NAME,
@@ -17,7 +17,7 @@ class SemanticRetriever:
     def __init__(
         self,
         records: list[EvidenceRecord],
-        model: SentenceTransformer | None = None,
+        model: Any | None = None,
     ) -> None:
         self.records = [
             record
@@ -26,6 +26,8 @@ class SemanticRetriever:
         ]
 
         if model is None:
+            from sentence_transformers import SentenceTransformer
+
             load_started = perf_counter()
 
             self.model = SentenceTransformer(

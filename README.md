@@ -60,7 +60,7 @@ export ORBITDESK_POSTGRES_PASSWORD='a-local-only-password'
 docker compose up --build
 ```
 
-Open `http://127.0.0.1:8000`. Compose builds the frontend, starts PostgreSQL, runs `alembic upgrade head` before the API, and retains tickets in a named volume. The container is bound to localhost; it is **not** an authenticated public deployment. Docker was not available for an end-to-end container run in this workspace, although `docker compose config` was validated.
+Open `http://127.0.0.1:8000`. Compose builds the frontend, starts PostgreSQL, runs `alembic upgrade head` before the API, and retains tickets in a named volume. The container is bound to localhost; it is **not** an authenticated public deployment. This path was verified end to end on October 9, 2026: both containers became healthy, unauthenticated ticket access returned `401`, an authenticated ticket returned `201`, and the ticket remained available after restarting the API container.
 
 For a private demo access gate, also set `ORBITDESK_OPERATOR_TOKEN` (24+ random characters recommended) before starting Compose. The browser then asks for that token; it keeps it only in memory and sends it in `X-OrbitDesk-Token`, never in a URL. Health and recorded question labels remain public; ticket, source, review, and model endpoints require the token. This is a **shared operator secret**, not per-user accounts or a substitute for HTTPS and a real identity provider.
 
@@ -90,6 +90,8 @@ Measured from actual runs on the checked-in dataset:
 | [live-keyword-v2](evaluation_results/live-keyword-v2.json) | 23 | 23/23 (100%) | 0.623 | 30/30 | 12/30 |
 
 The five recorded outputs include **two answerable questions and one expected escalation**; those small-sample ratios are not evidence of broad model quality. The live run used `z-ai/glm-4.5-air` and a 768-token output cap. It produced 30 valid responses: **7/19** answerable fact checks passed, **9/9** answered responses passed the citation-grounded proxy, and **0/9** triggered the unsupported-answer proxy. Escalation precision was **2/3** and recall **2/6**. Eleven responses safely failed citation verification; they did not fabricate an answer, but they still failed the intended task. Manual inspection found repeated verification failures on supported questions (for example Q-002 and Q-004), an unnecessary escalation on Q-019, and an insufficient-evidence question (Q-025) routed as an answerable refusal instead of escalation. The “grounded” proxy only scores the nine responses that actually answered and cannot establish semantic entailment.
+
+The [live failure taxonomy](docs/live-failure-taxonomy.md) accounts for all 18 failed cases and defines the fixed-input contract for the next live run.
 
 The v2 keyword scorer rewards coverage of the whole query, moving the Viewer-download policy source (Q-008) into the top four. The old experiment files are retained as baselines. Changing retrieval K in the recorded-output comparison does not regenerate the five answers, so those answer columns remain identical by design.
 

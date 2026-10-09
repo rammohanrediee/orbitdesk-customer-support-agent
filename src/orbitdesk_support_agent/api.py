@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from functools import lru_cache
 import hmac
 import json
+import logging
 import os
 from pathlib import Path
 from time import perf_counter
@@ -29,7 +30,7 @@ from orbitdesk_support_agent.openrouter_llm import (
     OpenRouterLanguageModel,
 )
 from orbitdesk_support_agent.retriever import KeywordRetriever
-from orbitdesk_support_agent.schemas import EvidenceRecord
+from orbitdesk_support_agent.schemas import EvidenceRecord, SupportResponse
 from orbitdesk_support_agent.trace import record_trace_event, request_trace
 from orbitdesk_support_agent.tickets import TicketAlreadyReviewed, TicketNotFound, TicketStore
 
@@ -41,6 +42,15 @@ DEFAULT_ALLOWED_ORIGINS = (
     "http://127.0.0.1:5173",
 )
 DEFAULT_RETRIEVAL_MODE = "keyword"
+logger = logging.getLogger(__name__)
+
+
+def _log_unexpected_workflow_error(operation: str, error: Exception) -> None:
+    logger.error(
+        "unexpected_workflow_error",
+        extra={"operation": operation, "error_type": type(error).__name__},
+        exc_info=True,
+    )
 
 
 class SupportRequest(BaseModel):
@@ -50,12 +60,24 @@ class SupportRequest(BaseModel):
 
 
 class SupportResult(BaseModel):
-    response: dict[str, Any]
+    response: SupportResponse
     execution_log: list[str]
     retrieval_mode: str | None
     model: str
-    trace: dict[str, Any]
+    trace: "TraceResult"
     latency_seconds: float
+
+
+class TraceEventResult(BaseModel):
+    name: str
+    timestamp: str
+    elapsed_ms: float
+    attributes: dict[str, str | bool | int | float | None]
+
+
+class TraceResult(BaseModel):
+    trace_id: str
+    events: list[TraceEventResult]
 
 
 class HealthResult(BaseModel):
@@ -76,6 +98,35 @@ class EvidenceResult(BaseModel):
     status: str
 
 
+class DemoQuestionResult(BaseModel):
+    question_id: str
+    question: str
+
+
+class DecisionCitationResult(BaseModel):
+    source_id: str
+    source_title: str
+    source_type: str
+    passage: str
+    claim: str | None
+
+
+class TicketDecisionResult(BaseModel):
+    id: str
+    action: Literal["ANSWER", "ESCALATE", "CLARIFY", "SAFE_FAILURE"]
+    classification: str
+    answer: str
+    reason_code: str | None
+    reason: str
+    model_name: str
+    retrieval_strategy: str | None
+    retrieval_top_k: int
+    pipeline_version: str
+    verification_passed: bool
+    created_at: str
+    citations: list[DecisionCitationResult]
+
+
 class TicketResult(BaseModel):
     id: str
     question: str
@@ -86,7 +137,7 @@ class TicketResult(BaseModel):
     created_at: str
     reviewed_at: str | None
     updated_at: str
-    decision: dict[str, Any]
+    decision: TicketDecisionResult
 
 
 class ReviewRequest(BaseModel):
@@ -201,6 +252,7 @@ def load_evidence_records() -> tuple[EvidenceRecord, ...]:
     return tuple(build_evidence_records(documents, cases))
 
 
+@lru_cache(maxsize=2)
 def build_runtime(retrieval: str):
     records = list(load_evidence_records())
     if retrieval == "semantic":
@@ -330,12 +382,12 @@ def health(response: Response) -> HealthResult:
     )
 
 
-@app.get("/api/demo-questions")
-def demo_questions() -> list[dict[str, str]]:
+@app.get("/api/demo-questions", response_model=list[DemoQuestionResult])
+def demo_questions() -> list[DemoQuestionResult]:
     if not demo_mode():
         return []
     return [
-        {"question_id": output["question_id"], "question": output["question"]}
+        DemoQuestionResult(question_id=output["question_id"], question=output["question"])
         for output in recorded_demo_outputs()
     ]
 
@@ -349,6 +401,7 @@ def support(payload: SupportRequest) -> SupportResult:
     except ValueError as error:
         raise HTTPException(status_code=503, detail=str(error)) from error
     except Exception as error:
+        _log_unexpected_workflow_error("support", error)
         raise HTTPException(
             status_code=500,
             detail="The support workflow could not complete safely.",
@@ -369,6 +422,7 @@ def create_ticket(payload: SupportRequest) -> dict:
     except ValueError as error:
         raise HTTPException(status_code=503, detail=str(error)) from error
     except Exception as error:
+        _log_unexpected_workflow_error("create_ticket", error)
         raise HTTPException(status_code=500, detail="The ticket could not be created safely.") from error
 
 
@@ -393,7 +447,11 @@ def get_ticket(ticket_id: str) -> dict:
         raise HTTPException(status_code=404, detail="Ticket not found.") from error
 
 
-@app.get("/api/tickets/{ticket_id}/decision", dependencies=[Depends(require_operator_token)])
+@app.get(
+    "/api/tickets/{ticket_id}/decision",
+    response_model=TicketDecisionResult,
+    dependencies=[Depends(require_operator_token)],
+)
 def get_ticket_decision(ticket_id: str) -> dict:
     try:
         return ticket_store().decision(ticket_id)

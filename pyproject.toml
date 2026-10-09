@@ -23,16 +23,14 @@ semantic = [
   "numpy>=2,<3",
   "sentence-transformers>=5,<6",
 ]
-local = [
-  "accelerate>=1,<2",
-  "torch>=2,<3",
-  "transformers>=5,<6",
-]
 dev = [
   "coverage>=7.10,<8",
   "httpx>=0.28,<1",
+  "mypy>=1.18,<2",
+  "numpy>=2,<3",
   "pip-audit>=2.9,<3",
   "pytest>=9,<10",
+  "ruff>=0.14,<1",
 ]
 
 [project.scripts]
@@ -51,12 +49,24 @@ branch = true
 source = ["orbitdesk_support_agent"]
 omit = [
   "*/cli.py",
-  "*/local_llm.py",
   "*/sample_runner.py",
-  "*/semantic_retriever.py",
   "*/tests/*",
 ]
 
 [tool.coverage.report]
 fail_under = 80
 show_missing = true
+
+[tool.ruff]
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+
+[tool.mypy]
+python_version = "3.11"
+files = [
+  "src/orbitdesk_support_agent/schemas.py",
+]
+ignore_missing_imports = true
+check_untyped_defs = true

@@ -7,6 +7,7 @@ from orbitdesk_support_agent.api import (
     SupportResult,
     _configured_retrieval_mode,
     app,
+    build_runtime,
     validate_startup_config,
 )
 
@@ -124,6 +125,37 @@ def test_retrieval_mode_is_selected_by_server_configuration(monkeypatch) -> None
     assert _configured_retrieval_mode() == "semantic"
 
 
+def test_runtime_is_built_once_per_retrieval_mode() -> None:
+    build_runtime.cache_clear()
+    with (
+        patch("orbitdesk_support_agent.api.load_evidence_records", return_value=()),
+        patch("orbitdesk_support_agent.api.KeywordRetriever") as retriever,
+        patch("orbitdesk_support_agent.api.OpenRouterLanguageModel"),
+        patch("orbitdesk_support_agent.api.build_graph"),
+    ):
+        first = build_runtime("keyword")
+        second = build_runtime("keyword")
+    build_runtime.cache_clear()
+
+    assert first is second
+    retriever.assert_called_once_with([])
+
+
+def test_semantic_runtime_uses_the_semantic_retriever() -> None:
+    build_runtime.cache_clear()
+    records = ({"source_id": "KB-1", "source_type": "knowledge_base", "title": "One", "text": "One", "status": "current"},)
+    with (
+        patch("orbitdesk_support_agent.api.load_evidence_records", return_value=records),
+        patch("orbitdesk_support_agent.semantic_retriever.SemanticRetriever") as retriever,
+        patch("orbitdesk_support_agent.api.OpenRouterLanguageModel"),
+        patch("orbitdesk_support_agent.api.build_graph"),
+    ):
+        build_runtime("semantic")
+    build_runtime.cache_clear()
+
+    retriever.assert_called_once_with(list(records))
+
+
 def test_invalid_retrieval_configuration_fails_safely(monkeypatch) -> None:
     monkeypatch.setenv("ORBITDESK_RETRIEVAL_MODE", "hybrid")
 
@@ -187,6 +219,27 @@ def test_support_returns_grounded_workflow_result() -> None:
     assert response.status_code == 200
     assert response.json()["response"]["classification"] == "answerable"
     assert response.json()["trace"]["trace_id"] == "trace-test"
+
+
+def test_unexpected_workflow_error_is_logged_without_reaching_client() -> None:
+    with (
+        patch(
+            "orbitdesk_support_agent.api.run_support_workflow",
+            side_effect=RuntimeError("provider secret detail"),
+        ),
+        patch("orbitdesk_support_agent.api.logger.error") as log_error,
+    ):
+        response = client.post(
+            "/api/support",
+            json={"question": "Who can create an API credential?"},
+        )
+
+    assert response.status_code == 500
+    assert "provider secret detail" not in response.text
+    assert log_error.call_args.kwargs["extra"] == {
+        "operation": "support",
+        "error_type": "RuntimeError",
+    }
 
 
 def test_evidence_endpoint_opens_a_current_source() -> None:

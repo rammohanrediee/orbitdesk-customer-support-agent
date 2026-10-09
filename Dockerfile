@@ -2,6 +2,7 @@ FROM node:22-alpine AS web
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm ci
+COPY tokens.css /app/tokens.css
 COPY frontend/ ./
 RUN npm run build
 

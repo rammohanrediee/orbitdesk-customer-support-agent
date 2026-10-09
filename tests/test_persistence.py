@@ -66,7 +66,7 @@ def test_review_stays_linked_to_ticket_and_decision(tmp_path, monkeypatch):
     reviewed = client.patch(f"/api/tickets/{ticket_id}/review", json={"action": "edit", "answer": "Owners and Admins may create them."})
     assert reviewed.status_code == 200
     assert reviewed.json()["final_answer"] == "Owners and Admins may create them."
-    assert client.get(f"/api/tickets/{ticket_id}/decision").json()["answer"] == generated_result().response["answer"]
+    assert client.get(f"/api/tickets/{ticket_id}/decision").json()["answer"] == generated_result().response.answer
 
 
 def test_legacy_sqlite_is_preserved_and_rejected_with_clear_message(tmp_path):

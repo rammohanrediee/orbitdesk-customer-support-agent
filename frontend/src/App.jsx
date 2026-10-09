@@ -7,12 +7,13 @@ import {
   Search,
   SquareArrowOutUpRight,
 } from "lucide-react";
-import { createTicket, getDemoQuestions, getHealth, listTickets, reviewTicket, setOperatorToken } from "./api.js";
+import { getDemoQuestions, getHealth, listTickets, setOperatorToken } from "./api.js";
 import AnswerPanel from "./components/AnswerPanel.jsx";
 import CommandPalette from "./components/CommandPalette.jsx";
 import HistoryRail from "./components/HistoryRail.jsx";
 import Inspector from "./components/Inspector.jsx";
 import QuestionComposer from "./components/QuestionComposer.jsx";
+import useTicketWorkflow from "./useTicketWorkflow.js";
 
 const HISTORY_WIDTH_KEY = "orbitdesk.historyWidth";
 
@@ -34,9 +35,20 @@ function clampHistoryWidth(width, limits) {
 }
 
 export default function App() {
-  const [question, setQuestion] = useState("");
-  const [tickets, setTickets] = useState([]);
-  const [activeTicket, setActiveTicket] = useState(null);
+  const {
+    activeTicket,
+    chooseTicket: selectTicket,
+    decideReview,
+    error,
+    question,
+    reviewBusy,
+    reviewError,
+    setTickets,
+    status,
+    submitQuestion,
+    tickets,
+    updateQuestion,
+  } = useTicketWorkflow();
   const [historyOpen, setHistoryOpen] = useState(() =>
     typeof window.matchMedia === "function"
       ? window.matchMedia("(min-width: 60rem)").matches
@@ -51,14 +63,10 @@ export default function App() {
     }
   });
   const resizePointer = useRef(null);
-  const [status, setStatus] = useState("idle");
-  const [error, setError] = useState("");
   const [historyError, setHistoryError] = useState("");
   const [health, setHealth] = useState(null);
   const [healthChecked, setHealthChecked] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
-  const [reviewError, setReviewError] = useState("");
-  const [reviewBusy, setReviewBusy] = useState(false);
   const [demoQuestions, setDemoQuestions] = useState([]);
   const [tokenDraft, setTokenDraft] = useState("");
   const [authenticated, setAuthenticated] = useState(false);
@@ -141,11 +149,7 @@ export default function App() {
   }, []);
 
   function chooseTicket(ticket) {
-    setActiveTicket(ticket);
-    setQuestion(ticket.question);
-    setStatus("success");
-    setError("");
-    setReviewError("");
+    selectTicket(ticket);
     setCommandOpen(false);
     if (window.matchMedia?.("(max-width: 59.99rem)")?.matches) {
       setHistoryOpen(false);
@@ -190,50 +194,9 @@ export default function App() {
     setHistoryWidth(clampHistoryWidth(nextWidth, widthLimits));
   }
 
-  function updateQuestion(nextQuestion) {
-    setQuestion(nextQuestion);
-    if (activeTicket && nextQuestion !== activeTicket.question) {
-      setActiveTicket(null);
-    }
-    if (status === "success" || status === "error") setStatus("idle");
-    if (error) setError("");
-  }
-
   function chooseDemoQuestion(sampleQuestion) {
     updateQuestion(sampleQuestion);
     document.getElementById("support-question")?.focus();
-  }
-
-  async function submitQuestion() {
-    const submittedQuestion = question.trim();
-    setStatus("loading");
-    setError("");
-    try {
-      const ticket = await createTicket({ question: submittedQuestion });
-      setActiveTicket(ticket);
-      setTickets((current) => [ticket, ...current].slice(0, 50));
-      setStatus("success");
-    } catch (requestError) {
-      setStatus("error");
-      setError(requestError.message);
-    }
-  }
-
-  async function decideReview(decision) {
-    if (!activeTicket || reviewBusy) return;
-    setReviewBusy(true);
-    setReviewError("");
-    try {
-      const reviewed = await reviewTicket(activeTicket.id, decision);
-      setActiveTicket(reviewed);
-      setTickets((current) => current.map((ticket) => (
-        ticket.id === reviewed.id ? reviewed : ticket
-      )));
-    } catch (reviewRequestError) {
-      setReviewError(reviewRequestError.message);
-    } finally {
-      setReviewBusy(false);
-    }
   }
 
   async function unlockWorkspace(event) {

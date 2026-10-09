@@ -115,7 +115,10 @@ def run_experiment(
         from orbitdesk_support_agent.semantic_retriever import SemanticRetriever
 
         semantic = SemanticRetriever(records)
-        retrieve = lambda question, _records, limit: semantic.retrieve(question, limit)
+
+        def retrieve(question, _records, limit):
+            return semantic.retrieve(question, limit)
+
         embedding_model = f"{EMBEDDING_MODEL_NAME}@{EMBEDDING_MODEL_REVISION}"
     else:
         raise ValueError("retrieval_mode must be keyword or semantic.")

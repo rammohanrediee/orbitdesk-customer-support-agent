@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -61,3 +62,20 @@ def test_live_generation_needs_provider_key(monkeypatch):
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     with pytest.raises(ValueError, match="OPENROUTER_API_KEY"):
         generate_live_outputs([], Path("unused.json"))
+
+
+def test_semantic_experiment_records_embedding_configuration(tmp_path: Path):
+    labels = tmp_path / "labels.json"
+    labels.write_text(json.dumps({"cases": [
+        {"question_id": "Q-1", "question": "Owners?", "expected_classification": "answerable", "expected_requires_human": False, "required_source_ids": ["KB-1"], "required_answer_terms": []},
+    ]}), encoding="utf-8")
+    outputs = tmp_path / "outputs.json"
+    outputs.write_text("[]", encoding="utf-8")
+    records = [{"source_id": "KB-1", "title": "Owners", "text": "Owners.", "source_type": "knowledge_base", "status": "current"}]
+
+    with patch("orbitdesk_support_agent.semantic_retriever.SemanticRetriever") as semantic:
+        semantic.return_value.retrieve.return_value = records
+        report = run_experiment("semantic-test", labels, outputs, records, "semantic", 1)
+
+    assert report["config"]["embedding_model"]
+    semantic.assert_called_once_with(records)

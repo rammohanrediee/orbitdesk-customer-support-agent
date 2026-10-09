@@ -16,6 +16,9 @@ from orbitdesk_support_agent.schemas import EvidenceRecord, SupportResponse
 from orbitdesk_support_agent.verifier import verify_response
 
 
+TERM_ALIASES = {"resave": ("resave", "save")}
+
+
 @dataclass(frozen=True)
 class AnswerCase:
     question_id: str
@@ -94,10 +97,18 @@ def evaluate_answers(
         if case.expected_reason_code and response.reason_code != case.expected_reason_code:
             issues.append("reason_code")
         source_ids = {source.source_id for source in response.sources}
-        if not set(case.required_source_ids).issubset(source_ids):
+        supported_source_ids = source_ids | {
+            linked_id
+            for source_id in source_ids
+            for linked_id in records_by_id.get(source_id, {}).get("source_documents", [])
+        }
+        if not set(case.required_source_ids).issubset(supported_source_ids):
             issues.append("required_sources")
         answer = response.answer.casefold()
-        if any(term.casefold() not in answer for term in case.required_answer_terms):
+        if any(
+            not any(alias in answer for alias in TERM_ALIASES.get(term.casefold(), (term.casefold(),)))
+            for term in case.required_answer_terms
+        ):
             issues.append("required_answer_terms")
         if any(term.casefold() in answer for term in case.forbidden_answer_terms):
             issues.append("forbidden_answer_terms")

@@ -7,6 +7,15 @@ Baseline: `evaluation_results/live-keyword-v2.json` and
 
 The baseline passed 12 of 30 cases. All 18 failures are accounted for below.
 
+## Implemented corrections
+
+- Generation now canonicalizes paraphrased citation passages and claims to exact source and answer text before verification.
+- Known retention, credential-recovery, pricing and contract boundaries route deterministically; unsupported commercial terms use `INSUFFICIENT_EVIDENCE`.
+- Evaluation accepts `save`/`resave` wording and treats a resolved case as evidence for its declared source documents.
+- Retry feedback uses stable issue codes and includes the previous response.
+
+With evaluator-only corrections, the unchanged v2 outputs rescore from 12/30 to 15/30. This is not a new live run and does not measure the generation and routing changes above.
+
 | Category | Cases | Count | What failed |
 | --- | --- | ---: | --- |
 | Verification rejected usable generation | Q-002, Q-004, Q-007, Q-009, Q-010, Q-011, Q-012, Q-018, Q-022, Q-028, Q-030 | 11 | Claim text was not copied into the answer exactly, a citation passage was not an exact retrieved excerpt, or both. The bounded retry then returned `safe_failure`. |

@@ -45,6 +45,24 @@ class StructuredAnswerModel:
         )
 
 
+class CorrectingModel:
+    def __init__(self):
+        self.calls = 0
+
+    def generate(self, system_prompt, user_prompt):
+        self.calls += 1
+        if self.calls == 1:
+            return (
+                '{"answer":"Ask a workspace owner.",'
+                '"citations":[{"source_id":"KB-API-001",'
+                '"passage":"Unrelated refund policy."}],'
+                '"confidence":0.9}'
+            )
+        assert "INVALID_PASSAGE" in user_prompt
+        assert "Ask a workspace owner." in user_prompt
+        return StructuredAnswerModel().generate(system_prompt, user_prompt)
+
+
 def initial_state(question, max_retries=99):
     return {
         "question": question,
@@ -88,6 +106,16 @@ class WorkflowReliabilityTests(unittest.TestCase):
 
         self.assertEqual(final_state["response"].classification, "out_of_scope")
 
+    def test_undocumented_contract_terms_escalate_without_generation(self):
+        graph = build_graph(RaisingModel(), StaticRetriever())
+
+        final_state = graph.invoke(
+            initial_state("What uptime SLA is promised in my contract?")
+        )
+
+        self.assertEqual(final_state["response"].classification, "requires_escalation")
+        self.assertEqual(final_state["response"].reason_code, "INSUFFICIENT_EVIDENCE")
+
     def test_workflow_clamps_generation_retries(self):
         model = InvalidGenerationModel()
         graph = build_graph(model, StaticRetriever())
@@ -105,6 +133,17 @@ class WorkflowReliabilityTests(unittest.TestCase):
         event_names = [event.name for event in trace.events]
         self.assertIn("workflow.generation.failed", event_names)
         self.assertIn("workflow.safe_failure", event_names)
+
+    def test_retry_receives_structured_issue_and_previous_response(self):
+        model = CorrectingModel()
+        graph = build_graph(model, StaticRetriever())
+
+        final_state = graph.invoke(
+            initial_state("Can I create an API credential?")
+        )
+
+        self.assertEqual(model.calls, 2)
+        self.assertTrue(final_state["verification_passed"])
 
     def test_triage_provider_failure_becomes_safe_failure(self):
         graph = build_graph(RaisingModel(), StaticRetriever())

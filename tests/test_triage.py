@@ -58,3 +58,23 @@ def test_vague_request_includes_clarification_question() -> None:
 
     assert result.classification == "requires_clarification"
     assert result.clarification_question
+
+
+@pytest.mark.parametrize(
+    ("question", "expected_classification", "expected_reason_code"),
+    [
+        ("Can support resend the exact export file nine days after delivery?", "answerable", None),
+        ("Can support reveal a lost API credential secret?", "answerable", None),
+        ("What is the Enterprise price and refund guarantee?", "requires_escalation", "INSUFFICIENT_EVIDENCE"),
+        ("What uptime SLA does OrbitDesk promise in my contract?", "requires_escalation", "INSUFFICIENT_EVIDENCE"),
+    ],
+)
+def test_known_support_boundaries_route_without_model(
+    question: str,
+    expected_classification: str,
+    expected_reason_code: str | None,
+) -> None:
+    result = triage_question(question, UnexpectedLLM())
+
+    assert result.classification == expected_classification
+    assert result.reason_code == expected_reason_code

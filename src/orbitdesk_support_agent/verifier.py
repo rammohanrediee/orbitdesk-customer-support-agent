@@ -27,7 +27,7 @@ def verify_response(
         and response.reason_code not in {"INSUFFICIENT_EVIDENCE", "CONFLICTING_SOURCES"}
     ):
         issues.append(
-            "The response classification requires supporting evidence."
+            "MISSING_EVIDENCE: The response classification requires supporting evidence."
         )
 
     if (
@@ -37,7 +37,7 @@ def verify_response(
         and response.reason_code not in {"INSUFFICIENT_EVIDENCE", "CONFLICTING_SOURCES"}
     ):
         issues.append(
-            f"{response.classification} responses must cite a source."
+            f"MISSING_CITATION: {response.classification} responses must cite a source."
         )
 
     if (
@@ -45,7 +45,7 @@ def verify_response(
         and not response.requires_human
     ):
         issues.append(
-            "Escalation responses must set requires_human to true."
+            "INVALID_HUMAN_FLAG: Escalation responses must set requires_human to true."
         )
 
     if (
@@ -53,7 +53,7 @@ def verify_response(
         and response.requires_human
     ):
         issues.append(
-            "Answerable responses must not require human escalation."
+            "INVALID_HUMAN_FLAG: Answerable responses must not require human escalation."
         )
 
     if response.classification == "requires_clarification":
@@ -61,7 +61,7 @@ def verify_response(
 
         if not clarification or not clarification.strip():
             issues.append(
-                "Clarification responses must include a question."
+                "MISSING_CLARIFICATION: Clarification responses must include a question."
             )
 
     for source in response.sources:
@@ -69,18 +69,18 @@ def verify_response(
 
         if record is None:
             issues.append(
-                f"Source {source.source_id} was not retrieved."
+                f"UNKNOWN_SOURCE: Source {source.source_id} was not retrieved."
             )
             continue
 
         if record["status"] == "superseded":
-            issues.append(f"Source {source.source_id} is superseded.")
+            issues.append(f"SUPERSEDED_SOURCE: Source {source.source_id} is superseded.")
             continue
 
         passage_tokens = tokenize(source.passage)
         if not passage_tokens:
             issues.append(
-                f"Source {source.source_id} has an empty or "
+                f"EMPTY_PASSAGE: Source {source.source_id} has an empty or "
                 "uninformative passage."
             )
             continue
@@ -89,13 +89,13 @@ def verify_response(
         normalized_evidence = " ".join(record["text"].split())
         if normalized_passage not in normalized_evidence:
             issues.append(
-                f"The cited passage for {source.source_id} is not an "
+                f"INVALID_PASSAGE: The cited passage for {source.source_id} is not an "
                 "exact excerpt of its retrieved evidence."
             )
 
         if source.claim and " ".join(source.claim.split()) not in " ".join(response.answer.split()):
             issues.append(
-                f"The claim linked to {source.source_id} is not in the answer."
+                f"CLAIM_NOT_IN_ANSWER: The claim linked to {source.source_id} is not in the answer."
             )
 
     return VerificationResult(

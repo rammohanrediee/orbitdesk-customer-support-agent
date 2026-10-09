@@ -52,8 +52,8 @@ def build_evidence_records(documents:list[KnowledgeDocument],
                 "title": case["title"],
                 "text": "\n\n".join(text_parts),
                 "status": case["status"],
+                "source_documents": case["source_documents"],
             }
         )
 
     return records
-    

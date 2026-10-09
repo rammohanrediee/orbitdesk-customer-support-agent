@@ -69,6 +69,25 @@ class ReliableGenerationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "not retrieved"):
             generate_response("question", EVIDENCE, model)
 
+    def test_repairs_paraphrased_passage_and_claim_to_exact_text(self):
+        model = FakeLanguageModel(
+            {
+                "answer": "Only workspace owners can rotate API credentials.",
+                "citations": [{
+                    "source_id": "KB-API-001",
+                    "passage": "Workspace owners rotate credentials.",
+                    "claim": "Owners rotate credentials.",
+                }],
+                "confidence": 0.9,
+            }
+        )
+
+        response = generate_response("Who rotates credentials?", EVIDENCE, model)
+
+        self.assertEqual(response.sources[0].passage, EVIDENCE[0]["text"])
+        self.assertEqual(response.sources[0].claim, response.answer)
+        self.assertTrue(verify_response(response, EVIDENCE).passed)
+
     def test_verifier_rejects_non_exact_passage(self):
         response = SupportResponse(
             classification="answerable",

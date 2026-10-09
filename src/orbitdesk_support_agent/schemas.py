@@ -62,6 +62,7 @@ class EvidenceRecord(TypedDict):
     title:str
     text:str
     status:str
+    source_documents: NotRequired[list[str]]
 
 class SourceReference(BaseModel):
     source_id: str=Field(min_length=1, max_length=100)
@@ -95,4 +96,5 @@ class VerificationResult(BaseModel):
 class TriageResult(BaseModel):
     classification: TriageClassification
     reason: str=Field(min_length=1)
+    reason_code: ReasonCode | None = None
     clarification_question: str | None = None

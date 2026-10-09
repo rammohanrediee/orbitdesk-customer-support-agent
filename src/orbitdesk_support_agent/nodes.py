@@ -78,7 +78,6 @@ def create_retry_node() -> Callable[[AgentState], AgentState]:
         )
         return {
             "retry_count": retry_count + 1,
-            "response": None,
             "verification_passed": False,
             "execution_log": ["retry"],
         }
@@ -201,7 +200,13 @@ def create_generation_node(
                 records=evidence,
                 llm=llm,
                 expected_classification=expected_classification,
+                expected_reason_code=(
+                    triage_result.reason_code
+                    if triage_result is not None
+                    else None
+                ),
                 revision_feedback=revision_feedback,
+                previous_response=state.get("response"),
             )
         except Exception as error:
             record_trace_event(
@@ -237,7 +242,7 @@ def create_verification_node() -> Callable[[AgentState], AgentState]:
             return {
                 "verification_passed": False,
                 "verification_issues": [
-                    "No generated response was available."
+                    "NO_RESPONSE: No generated response was available."
                 ],
                 "execution_log": ["verify:failed"],
             }

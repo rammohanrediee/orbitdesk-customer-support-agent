@@ -1,4 +1,5 @@
 import json
+import re
 from typing import Any, Protocol
 
 from orbitdesk_support_agent.prompts import (
@@ -9,8 +10,10 @@ from orbitdesk_support_agent.schemas import (
     Classification,
     EvidenceRecord,
     GeneratedAnswer,
+    ReasonCode,
     SupportResponse,
 )
+from orbitdesk_support_agent.retriever import tokenize
 
 
 class LanguageModel(Protocol):
@@ -20,6 +23,25 @@ class LanguageModel(Protocol):
         user_prompt: str,
     ) -> str:
         ...
+
+
+def _closest_exact_text(text: str, hint: str) -> str:
+    normalized_text = " ".join(text.split())
+    normalized_hint = " ".join(hint.split())
+    if normalized_hint in normalized_text:
+        return hint
+
+    hint_tokens = tokenize(hint)
+    candidates = [
+        part.strip()
+        for part in re.split(r"(?<=[.!?])\s+|\n+", text)
+        if 0 < len(part.strip()) <= 500
+    ]
+    return max(
+        candidates,
+        key=lambda part: len(tokenize(part) & hint_tokens),
+        default=hint,
+    ) if any(tokenize(part) & hint_tokens for part in candidates) else hint
 
 
 def extract_json_object(raw_text: str) -> dict[str, Any]:
@@ -53,8 +75,24 @@ def generate_response(
     records: list[EvidenceRecord],
     llm: LanguageModel,
     expected_classification: Classification = "answerable",
+    expected_reason_code: ReasonCode | None = None,
     revision_feedback: list[str] | None = None,
+    previous_response: SupportResponse | None = None,
 ) -> SupportResponse:
+    if expected_reason_code == "INSUFFICIENT_EVIDENCE":
+        return SupportResponse(
+            classification="requires_escalation",
+            answer=(
+                "The available OrbitDesk documentation does not define these terms. "
+                "A support specialist needs to confirm them."
+            ),
+            sources=[],
+            confidence=0.0,
+            requires_human=True,
+            reason="The supplied documentation is insufficient.",
+            reason_code=expected_reason_code,
+        )
+
     if not records:
         return SupportResponse(
             classification="requires_escalation",
@@ -91,8 +129,13 @@ def generate_response(
         feedback = "; ".join(revision_feedback)
         user_prompt += (
             "\n\nThe previous attempt failed verification. Correct "
-            f"these issues: {feedback}"
+            f"only these issues and preserve the other fields: {feedback}"
         )
+        if previous_response is not None:
+            user_prompt += (
+                "\nPrevious attempt:\n"
+                f"{previous_response.model_dump_json()}"
+            )
 
     raw_response = llm.generate(
         SYSTEM_PROMPT,
@@ -107,13 +150,21 @@ def generate_response(
                 f"Cited source {citation.source_id} was not retrieved."
             )
 
-    enriched_citations = [
-        citation.model_copy(update={
-            "source_title": retrieved_by_id[citation.source_id]["title"],
-            "source_type": retrieved_by_id[citation.source_id]["source_type"],
-        })
-        for citation in generated.citations
-    ]
+    enriched_citations = []
+    for citation in generated.citations:
+        record = retrieved_by_id[citation.source_id]
+        passage = _closest_exact_text(record["text"], citation.passage)
+        claim = (
+            _closest_exact_text(generated.answer, citation.claim)
+            if citation.claim
+            else None
+        )
+        enriched_citations.append(citation.model_copy(update={
+            "passage": passage,
+            "claim": claim,
+            "source_title": record["title"],
+            "source_type": record["source_type"],
+        }))
 
     return SupportResponse(
         classification=expected_classification,
@@ -128,9 +179,12 @@ def generate_response(
             "OrbitDesk evidence."
         ),
         reason_code=(
-            "POLICY_REQUIRES_HUMAN"
-            if expected_classification == "requires_escalation"
-            else None
+            expected_reason_code
+            or (
+                "POLICY_REQUIRES_HUMAN"
+                if expected_classification == "requires_escalation"
+                else None
+            )
         ),
         clarification_question=None,
         warnings=[],

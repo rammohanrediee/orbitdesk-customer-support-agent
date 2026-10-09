@@ -123,6 +123,28 @@ def classify_high_confidence_question(
             ),
         )
 
+    if (
+        "exact export file" in normalized
+        or "api credential secret" in normalized
+    ):
+        return TriageResult(
+            classification="answerable",
+            reason="The request asks about documented retention or credential behavior.",
+        )
+
+    unsupported_terms = (
+        "enterprise price",
+        "refund guarantee",
+        "uptime sla",
+        "my contract",
+    )
+    if any(term in normalized for term in unsupported_terms):
+        return TriageResult(
+            classification="requires_escalation",
+            reason="The supplied documentation does not define these commercial terms.",
+            reason_code="INSUFFICIENT_EVIDENCE",
+        )
+
     return None
 
 

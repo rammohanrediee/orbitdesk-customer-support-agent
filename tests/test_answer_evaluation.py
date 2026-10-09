@@ -99,3 +99,23 @@ def test_invalid_saved_output_counts_as_failed_answer_and_missed_escalation():
     assert report["invalid_response_count"] == 2
     assert report["answer_correctness"] == 0.0
     assert report["escalation_recall"] == 0.0
+
+
+def test_equivalent_term_and_linked_case_source_are_accepted():
+    case = AnswerCase("Q-1", "answerable", False, ("KB-1",), ("resave",))
+    outputs = [output(
+        "Q-1",
+        "answerable",
+        "Save the schedule.",
+        [{"source_id": "CASE-1", "passage": "Save the schedule."}],
+    )]
+    records = [{
+        "source_id": "CASE-1",
+        "text": "Save the schedule.",
+        "source_type": "resolved_case",
+        "title": "Saved schedule",
+        "status": "resolved",
+        "source_documents": ["KB-1"],
+    }]
+
+    assert evaluate_answers([case], outputs, records)["passed_count"] == 1
